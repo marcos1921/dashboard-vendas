@@ -1,23 +1,43 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+from html import escape
 import os
+import re
+import unicodedata
 
 # --- CONFIGURAÇÃO DE PÁGINA ---
 st.set_page_config(page_title="Dashboard Vendas", page_icon="⚡", layout="wide")
 
+# --- CSS E RESPONSIVIDADE (MOBILE & DESKTOP) ---
 st.markdown("""
     <style>
-    .stApp { background-color: #f7f9fc; font-family: 'Segoe UI', sans-serif; }
+    /* Variáveis nativas garantem a leitura em qualquer tema (Dark/Light) */
     .main-title { color: #e51e25; font-weight: 900; font-size: 2.8rem; margin-bottom: 0px; text-transform: uppercase; }
     .sub-title { color: #f4ab13; font-size: 1.4rem; font-weight: 700; margin-top: -10px; margin-bottom: 30px; text-transform: uppercase; }
-    [data-testid="stMetricValue"] { font-size: 2.2rem !important; font-weight: 900 !important; color: #2b2b2b !important; }
-    [data-testid="stMetricLabel"] { font-size: 1rem !important; font-weight: 700 !important; color: #707070 !important; text-transform: uppercase; }
-    .section-header { background: linear-gradient(90deg, #f4ab13 0%, #ffc547 100%); padding: 10px 20px; border-radius: 8px; color: #2b2b2b; font-weight: 900; font-size: 1.2rem; margin-top: 30px; margin-bottom: 20px; text-transform: uppercase; }
-    .section-header-red { background: linear-gradient(90deg, #e51e25 0%, #ff4b4b 100%); padding: 10px 20px; border-radius: 8px; color: #ffffff; font-weight: 900; font-size: 1.2rem; margin-top: 30px; margin-bottom: 20px; text-transform: uppercase; }
-    .alert-box { background-color: #fff3cd; border-left: 5px solid #ffc107; padding: 15px; border-radius: 5px; font-weight: 600; color: #856404; }
-    .cat-destaque { background-color: #2b2b2b; color: #f4ab13; padding: 6px 18px; border-radius: 20px; font-size: 1.1rem; font-weight: 800; display: inline-block; margin-bottom: 10px;}
-    .cliente-titulo { color: #1f1f1f; font-size: 2.2rem; font-weight: 900; margin-top: 0px; margin-bottom: 20px; text-transform: uppercase; border-bottom: 3px solid #e51e25; padding-bottom: 8px;}
+    
+    [data-testid="stMetricValue"] { font-size: 2.2rem !important; font-weight: 900 !important; color: var(--text-color) !important; }
+    [data-testid="stMetricLabel"] { font-size: 1rem !important; font-weight: 700 !important; color: var(--text-color) !important; opacity: 0.7; text-transform: uppercase; }
+    
+    /* Cabeçalhos Dinâmicos e Responsivos */
+    .header-yellow { background: linear-gradient(90deg, #f4ab13 0%, #ffc547 100%); padding: 10px 20px; border-radius: 8px; color: #000000; font-weight: 900; font-size: 1.2rem; margin-top: 30px; margin-bottom: 20px; text-transform: uppercase; }
+    .header-red { background: linear-gradient(90deg, #e51e25 0%, #ff4b4b 100%); padding: 10px 20px; border-radius: 8px; color: #ffffff; font-weight: 900; font-size: 1.2rem; margin-top: 30px; margin-bottom: 20px; text-transform: uppercase; }
+    .header-green { background: linear-gradient(90deg, #21c354 0%, #28a745 100%); padding: 10px 20px; border-radius: 8px; color: #ffffff; font-weight: 900; font-size: 1.2rem; margin-top: 30px; margin-bottom: 20px; text-transform: uppercase; }
+    
+    .cat-destaque { background-color: var(--secondary-background-color); color: #f4ab13; padding: 6px 18px; border-radius: 20px; font-size: 1.1rem; font-weight: 800; display: inline-block; margin-bottom: 10px;}
+    .cliente-titulo { color: var(--text-color); font-size: 2.2rem; font-weight: 900; margin-top: 0px; margin-bottom: 20px; text-transform: uppercase; border-bottom: 3px solid #e51e25; padding-bottom: 8px;}
+    
+    /* Inverte as cores da tabela para contrastar com o tema atual (Light/Dark) */
+    [data-testid="stDataFrame"] { filter: invert(1) hue-rotate(180deg); }
+
+    /* REGRAS DE MOBILE: Ajusta os tamanhos para telas menores que 768px (Celulares) */
+    @media (max-width: 768px) {
+        .main-title { font-size: 1.8rem; }
+        .sub-title { font-size: 1.1rem; }
+        .cliente-titulo { font-size: 1.5rem; }
+        .header-yellow, .header-red, .header-green { font-size: 1rem; padding: 10px 15px; }
+        [data-testid="stMetricValue"] { font-size: 1.8rem !important; }
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -31,6 +51,32 @@ CAMPANHAS_MAP = {
     "5. ESMERALDA": {"Rebates": "", "Camp1": "", "Camp2": "Vamos Juntos - 1 vaga", "Camp3": "Stock Car - 1 vaga", "Camp4": "Compre e Ganhe"},
     "6. QUARTZO": {"Rebates": "", "Camp1": "", "Camp2": "Vamos Juntos - 1 vaga", "Camp3": "", "Camp4": "Compre e Ganhe"},
 }
+
+def chave_coluna(nome):
+    texto = unicodedata.normalize("NFKD", str(nome))
+    texto = "".join(char for char in texto if not unicodedata.combining(char))
+    texto = texto.replace("", "")
+    return re.sub(r"\s+", " ", texto).strip().upper()
+
+def normalizar_colunas(df, aliases):
+    colunas_por_chave = {chave_coluna(coluna): coluna for coluna in df.columns}
+    renomear = {}
+    for nome_padrao, nomes_alternativos in aliases.items():
+        for alternativa in [nome_padrao, *nomes_alternativos]:
+            coluna_origem = colunas_por_chave.get(chave_coluna(alternativa))
+            if coluna_origem:
+                renomear[coluna_origem] = nome_padrao
+                break
+    return df.rename(columns=renomear)
+
+def validar_colunas(df, obrigatorias, nome_base):
+    ausentes = sorted(set(obrigatorias) - set(df.columns))
+    if ausentes:
+        raise ValueError(f"A base de {nome_base} não possui as colunas: {', '.join(ausentes)}.")
+
+# --- MENU LATERAL (SIDEBAR) ---
+st.sidebar.image("logo.png", use_container_width=True)
+st.sidebar.divider()
 
 st.sidebar.title("Navegação")
 aba_selecionada = st.sidebar.radio("Ir para:", ["🔍 Consulta de Clientes", "⚙️ Área do Administrador"])
@@ -48,18 +94,23 @@ if aba_selecionada == "⚙️ Área do Administrador":
     st.markdown('<div class="sub-title">Atualização Diária de Bases</div>', unsafe_allow_html=True)
     
     senha = st.text_input("Senha de administrador:", type="password")
-    if senha == "admin123":
+    senha_admin = st.secrets.get("senha_admin")
+    if not senha_admin:
+        st.error("A senha administrativa não foi configurada no servidor.")
+    elif senha == senha_admin:
         up_vendas = st.file_uploader("1. Substituir Base de Vendas (Excel)", type=["xlsx"])
-        up_receber = st.file_uploader("2. Substituir Contas a Receber (CSV)", type=["csv"])
+        up_receber = st.file_uploader("2. Substituir Base de Receber (CSV)", type=["csv"])
         if st.button("💾 Salvar Novas Bases"):
-            if up_vendas and up_receber:
-                with open(ARQ_VENDAS_SERVIDOR, "wb") as f: f.write(up_vendas.getbuffer())
-                with open(ARQ_RECEBER_SERVIDOR, "wb") as f: f.write(up_receber.getbuffer())
-                st.success("✅ Bases atualizadas com sucesso!")
+            if up_vendas is not None and up_receber is not None:
+                with open(ARQ_VENDAS_SERVIDOR, "wb") as arquivo:
+                    arquivo.write(up_vendas.getbuffer())
+                with open(ARQ_RECEBER_SERVIDOR, "wb") as arquivo:
+                    arquivo.write(up_receber.getbuffer())
                 st.cache_data.clear()
+                st.success("✅ Bases atualizadas com sucesso!")
             else:
-                st.error("Faça o upload de ambos os arquivos.")
-    elif senha != "":
+                st.error("Faça o upload de ambos os arquivos antes de salvar.")
+    elif senha:
         st.error("Senha incorreta.")
 
 # ==========================================
@@ -74,30 +125,34 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     path_receber = ARQ_RECEBER_SERVIDOR if os.path.exists(ARQ_RECEBER_SERVIDOR) else (csv_local[0] if csv_local else None)
 
     if not path_vendas or not path_receber:
-        st.warning("⏳ **Atenção:** Arquivos não encontrados. Vá na **Área do Administrador** (menu ao lado), insira a senha `admin123` e faça o upload.")
+        st.warning("⏳ **Atenção:** Arquivos não encontrados. Vá à **Área do Administrador** e faça o upload das duas bases.")
         st.stop()
 
     @st.cache_data(show_spinner="Processando inteligência comercial e corrigindo datas...")
     def carregar_dados_blindado(vendas_file, receber_file):
         df_v = pd.read_excel(vendas_file, sheet_name=0)
         df_r = pd.read_csv(receber_file, encoding="latin1", sep=None, engine="python")
+
+        df_v = normalizar_colunas(df_v, {
+            "DATA EMISSÃO": ["DATA EMISSO"],
+            "CÓDIGO CLIENTE": ["CDIGO CLIENTE"],
+            "DESCRIÇÃO": ["DESCRIO"],
+        })
+        df_r = normalizar_colunas(df_r, {
+            "EMISSÃO": ["EMISSO"],
+        })
         
-        # --- TRATAMENTO BLINDADO DE DATAS (Evita 1970) ---
-        coluna_data = "DATA EMISSÃO"
-        if coluna_data in df_v.columns:
-            # Tenta converter normalmente
-            datas_convertidas = pd.to_datetime(df_v[coluna_data], errors="coerce")
-            
-            # Se vieram valores numéricos (serial do Excel) ou formato misto
-            mask_nat = datas_convertidas.isna() & df_v[coluna_data].notna()
-            if mask_nat.any():
-                try:
-                    datas_convertidas[mask_nat] = pd.to_datetime(pd.to_numeric(df_v.loc[mask_nat, coluna_data], errors='coerce'), unit='D', origin='1899-12-30')
-                except Exception:
-                    pass
-            df_v["DATA_DT"] = datas_convertidas
-        else:
-            df_v["DATA_DT"] = pd.NaT
+        datas_origem = df_v["DATA EMISSÃO"]
+        numeros_data = pd.to_numeric(datas_origem, errors="coerce")
+        mascara_excel = numeros_data.notna()
+        datas_convertidas = pd.Series(pd.NaT, index=df_v.index, dtype="datetime64[ns]")
+        datas_convertidas.loc[mascara_excel] = pd.to_datetime(
+            numeros_data.loc[mascara_excel], unit="D", origin="1899-12-30", errors="coerce"
+        )
+        datas_convertidas.loc[~mascara_excel] = pd.to_datetime(
+            datas_origem.loc[~mascara_excel], dayfirst=True, errors="coerce"
+        )
+        df_v["DATA_DT"] = datas_convertidas
 
         df_v["ANO"] = df_v["DATA_DT"].dt.year
         df_v["MES"] = df_v["DATA_DT"].dt.month
@@ -107,20 +162,26 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         df_v["VENDALITROS"] = pd.to_numeric(df_v["VENDALITROS"], errors="coerce").fillna(0)
         df_v["VALORTOTAL"] = pd.to_numeric(df_v["VALORTOTAL"], errors="coerce").fillna(0)
         
-        if "VALOR EMABERTO" in df_r.columns:
-            df_r["VALOR_NUM"] = df_r["VALOR EMABERTO"].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
-            df_r["VALOR_NUM"] = pd.to_numeric(df_r["VALOR_NUM"], errors="coerce").fillna(0)
+        valor_aberto = df_r["VALOR EMABERTO"].astype(str).str.strip()
+        valor_aberto = valor_aberto.str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
+        df_r["VALOR_NUM"] = pd.to_numeric(valor_aberto, errors="coerce").fillna(0)
+        df_r["CODIGO_CLIENTE"] = (
+            df_r["CLIENTE"].astype(str).str.extract(r"^\s*(\d+)", expand=False).str.zfill(7)
+        )
+        df_r["VENCIMENTO_DT"] = pd.to_datetime(df_r["VENCIMENTO"], dayfirst=True, errors="coerce")
             
         return df_v, df_r
 
-    df_vendas, df_receber = carregar_dados_blindado(path_vendas, path_receber)
+    try:
+        df_vendas, df_receber = carregar_dados_blindado(path_vendas, path_receber)
+    except (ValueError, KeyError) as erro:
+        st.error(f"Não foi possível carregar as bases: {erro}")
+        st.stop()
 
-    # Identificar dinamicamente o ano mais recente presente na base (ex: 2026)
     anos_disponiveis = df_vendas["ANO"].dropna().unique()
     ANO_ATUAL = int(max(anos_disponiveis)) if len(anos_disponiveis) > 0 else 2026
     ANO_ANTERIOR = ANO_ATUAL - 1
     
-    # Mês limite baseado na última data válida da base
     max_dt_base = df_vendas["DATA_DT"].max()
     MES_ATUAL = int(max_dt_base.month) if pd.notna(max_dt_base) else 8
     HOJE = max_dt_base if pd.notna(max_dt_base) else datetime(ANO_ATUAL, MES_ATUAL, 1)
@@ -128,18 +189,33 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     # --- FILTROS ---
     st.sidebar.markdown("---")
     st.sidebar.header("🔍 Buscar Cliente")
-    
+
+    termo_busca = st.sidebar.text_input("Nome ou código do cliente", placeholder="Ex.: 141428 ou Express").strip()
     cidades = sorted(df_vendas["CIDADE"].dropna().astype(str).str.strip().unique())
-    cidade_sel = st.sidebar.selectbox("1. Filtrar por Cidade", ["Todas"] + cidades)
-    
-    df_filt = df_vendas[df_vendas["CIDADE"].astype(str).str.strip() == cidade_sel] if cidade_sel != "Todas" else df_vendas
-    
+    cidade_sel = st.sidebar.selectbox("Cidade (opcional)", ["Todas"] + cidades)
+
+    df_filt = df_vendas
+    if termo_busca:
+        grupos = df_vendas["Grupo de Cliente"].fillna("").astype(str)
+        clientes = df_vendas["CLIENTE"].fillna("").astype(str)
+        mascara_busca = grupos.str.contains(termo_busca, case=False, regex=False) | clientes.str.contains(termo_busca, case=False, regex=False)
+
+        if termo_busca.isdigit():
+            codigo_buscado = str(int(termo_busca))
+            codigos = pd.to_numeric(df_vendas["CÓDIGO CLIENTE"], errors="coerce")
+            mascara_busca |= codigos.eq(int(codigo_buscado))
+
+        df_filt = df_filt[mascara_busca]
+
+    if cidade_sel != "Todas":
+        df_filt = df_filt[df_filt["CIDADE"].astype(str).str.strip() == cidade_sel]
+
     grupos_disponiveis = sorted(df_filt["Grupo de Cliente"].dropna().unique())
     if not grupos_disponiveis:
-        st.error("Nenhum cliente encontrado nesta cidade.")
+        st.error("Nenhum cliente encontrado com os filtros informados.")
         st.stop()
-        
-    grupo_escolhido = st.sidebar.selectbox("2. Selecione a Rede/Cliente:", grupos_disponiveis)
+
+    grupo_escolhido = st.sidebar.selectbox("Selecione a rede ou cliente", grupos_disponiveis)
 
     # --- PROCESSAMENTO DO GRUPO ---
     df_grupo = df_vendas[df_vendas["Grupo de Cliente"] == grupo_escolhido]
@@ -150,14 +226,13 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     info_grupo = df_grupo.iloc[0]
     categoria_grupo = str(info_grupo.get("CATEGORIA", "Sem Categoria")).strip()
 
-    # --- EXIBIÇÃO DA CATEGORIA E NOME DO CLIENTE NO TOPO ---
-    st.markdown(f'<div class="cat-destaque">🏆 Categoria: {categoria_grupo}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="cliente-titulo">{grupo_escolhido}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="cat-destaque">🏆 Categoria: {escape(categoria_grupo)}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="cliente-titulo">{escape(grupo_escolhido)}</div>', unsafe_allow_html=True)
 
     # ==========================================
-    # 1. SUVINIL + SHERWIN (Coluna J: VENDALITROS)
+    # 1. SUVINIL + SHERWIN
     # ==========================================
-    st.markdown(f'<div class="section-header">PERFORMANCE PRINCIPAL (SUVINIL + SHERWIN) - ACUMULADO JAN A {MES_ATUAL:02d}/{ANO_ATUAL}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="header-yellow">PERFORMANCE PRINCIPAL (SUVINIL + SHERWIN) - ACUMULADO JAN A {MES_ATUAL:02d}/{ANO_ATUAL}</div>', unsafe_allow_html=True)
     
     fab_principais = df_grupo[df_grupo["FABRICANTE_LAVADO"].str.contains("SUVINIL|SHERWIN", na=False)]
     L_atual = df_atual[df_atual["FABRICANTE_LAVADO"].str.contains("SUVINIL|SHERWIN", na=False)]["VENDALITROS"].sum()
@@ -170,27 +245,56 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
 
     if L_ant > 0:
         cresc = ((L_atual - L_ant) / L_ant) * 100
-        txt_cresc = f"▲ +{cresc:.1f}% (Ano Ant: {L_ant:,.0f} L)".replace(',', '.') if cresc >= 0 else f"▼ {cresc:.1f}% (Ano Ant: {L_ant:,.0f} L)".replace(',', '.')
+        txt_cresc = f"{cresc:.1f}% (Ano Ant: {L_ant:,.0f} L)"
     else:
         txt_cresc = "Sem base no ano anterior"
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Positivação", "🟢 SIM" if L_atual > 0 else "🔴 NÃO")
     c2.metric(f"Venda Litros ({ANO_ATUAL})", f"{L_atual:,.0f} L".replace(',', '.'), txt_cresc)
-    c3.metric("Pulverização", "META OK" if L_atual >= 50 else f"Faltam {50 - L_atual:,.0f}L".replace(',', '.'), "Alvo: 50 Litros")
-    c4.metric("Status Ciclo", status_inat, "Tempo de recompra")
+    
+    delta_pulv = "Meta Atingida" if L_atual >= 50 else f"-{50 - L_atual:.1f} L (Abaixo da Meta)"
+    c3.metric("Pulverização", "META OK" if L_atual >= 50 else f"Faltam {50 - L_atual:,.0f} L".replace(',', '.'), delta_pulv)
+    
+    c4.metric("Status Ciclo", status_inat, "Tempo de recompra", delta_color="off")
 
     # ==========================================
     # 2. MIX BÁSICO & HIERARQUIA DE PRODUTOS
     # ==========================================
-    st.markdown('<div class="section-header">MIX BÁSICO & HIERARQUIA DE PRODUTOS</div>', unsafe_allow_html=True)
+    st.markdown('<div class="header-yellow">MIX BÁSICO & HIERARQUIA DE PRODUTOS</div>', unsafe_allow_html=True)
     
     cli_suv_sher = df_atual[df_atual["FABRICANTE_LAVADO"].str.contains("SUVINIL|SHERWIN", na=False)]
-    mix_comprado = cli_suv_sher["MIX\nBASICO"].dropna().astype(str).str.upper().unique()
-    faltam = [f for f, tem in {"ALVENARIA": any("ALVENARIA" in m for m in mix_comprado), "COMPLEMENTOS": any("COMPLEMENTO" in m for m in mix_comprado), "ESMALTES E VERNIZES": any("ESM" in m for m in mix_comprado)}.items() if not tem]
     
-    if not faltam: st.success("🏆 **Mix Básico Completo!** O cliente comprou Alvenaria, Complementos e Esmaltes este ano.")
-    else: st.markdown(f'<div class="alert-box">⚠️ FOCO DE VENDA: Falta positivar no Mix Básico este ano: <b>{", ".join(faltam)}</b>.</div>', unsafe_allow_html=True)
+    vol_alvenaria = cli_suv_sher[cli_suv_sher["MIX\nBASICO"].astype(str).str.upper().str.contains("ALVENARIA", na=False)]["VENDALITROS"].sum()
+    vol_complementos = cli_suv_sher[cli_suv_sher["MIX\nBASICO"].astype(str).str.upper().str.contains("COMPLEMENTO", na=False)]["VENDALITROS"].sum()
+    vol_esmaltes = cli_suv_sher[cli_suv_sher["MIX\nBASICO"].astype(str).str.upper().str.contains("ESM", na=False)]["VENDALITROS"].sum()
+    
+    META_MIX = 14.4
+    
+    if (vol_alvenaria >= META_MIX) and (vol_complementos >= META_MIX) and (vol_esmaltes >= META_MIX):
+        st.markdown('<div style="background-color: rgba(33, 195, 84, 0.15); border-left: 5px solid #21c354; padding: 15px; border-radius: 5px; color: var(--text-color); font-weight: 600; margin-bottom: 20px;">🏆 Mix Básico Completo! O cliente positivou todas as categorias.</div>', unsafe_allow_html=True)
+    else:
+        def format_falta(vol):
+            if vol < META_MIX:
+                falta = META_MIX - vol
+                return f"<span style='color: #ff9999; font-weight: 400; font-size: 0.95rem;'>(Faltam {falta:.1f} L)</span>".replace('.', ',')
+            return ""
+
+        st_alv = f"<div style='color: {'#e51e25; font-weight: 900;' if vol_alvenaria < META_MIX else 'var(--text-color)'}; margin-bottom: 8px; font-size: 1.05rem;'>{'❌' if vol_alvenaria < META_MIX else '✅'} Alvenaria {format_falta(vol_alvenaria)}</div>"
+        st_comp = f"<div style='color: {'#e51e25; font-weight: 900;' if vol_complementos < META_MIX else 'var(--text-color)'}; margin-bottom: 8px; font-size: 1.05rem;'>{'❌' if vol_complementos < META_MIX else '✅'} Complementos {format_falta(vol_complementos)}</div>"
+        st_esm = f"<div style='color: {'#e51e25; font-weight: 900;' if vol_esmaltes < META_MIX else 'var(--text-color)'}; margin-bottom: 8px; font-size: 1.05rem;'>{'❌' if vol_esmaltes < META_MIX else '✅'} Esmaltes e Vernizes {format_falta(vol_esmaltes)}</div>"
+        
+        st.markdown(
+            f"""
+            <div style="background-color: var(--secondary-background-color); border-left: 5px solid #e51e25; padding: 15px 20px; border-radius: 5px; margin-bottom: 20px;">
+                <p style="font-weight: 900; font-size: 1.1rem; color: var(--text-color); margin-top: 0; margin-bottom: 15px;">⚠️ FOCO DE VENDA: POSITIVAR MIX BÁSICO</p>
+                {st_alv}
+                {st_comp}
+                {st_esm}
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
 
     todas_hierarquias = df_vendas[df_vendas["FABRICANTE_LAVADO"].str.contains("SUVINIL|SHERWIN", na=False)]["hierarquia Agrupada"].dropna().unique()
     hierarquias_compradas = cli_suv_sher["hierarquia Agrupada"].dropna().unique()
@@ -199,16 +303,16 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     col_h1, col_h2 = st.columns(2)
     with col_h1:
         st.markdown(f"**✅ Linhas Já Compradas ({len(hierarquias_compradas)}):**")
-        st.dataframe(pd.DataFrame(hierarquias_compradas, columns=["PRODUTOS COMPRADOS"]), use_container_width=True, height=200)
+        st.dataframe(pd.DataFrame(hierarquias_compradas, columns=["PRODUTOS COMPRADOS"]), hide_index=True, use_container_width=True, height=200)
             
     with col_h2:
         st.markdown(f"**❌ Oportunidades - Não Compradas ({len(hierarquias_faltantes)}):**")
-        st.dataframe(pd.DataFrame(hierarquias_faltantes, columns=["AÇÕES DE VENDA (FALTANTES)"]), use_container_width=True, height=200)
+        st.dataframe(pd.DataFrame(hierarquias_faltantes, columns=["AÇÕES DE VENDA (FALTANTES)"]), hide_index=True, use_container_width=True, height=200)
 
     # ==========================================
-    # 3. OUTROS FORNECEDORES (Amais/Farben = Col J | Adere/Condor = Col L)
+    # 3. OUTROS FORNECEDORES
     # ==========================================
-    st.markdown('<div class="section-header">PERFORMANCE DE MARCAS COMPLEMENTARES</div>', unsafe_allow_html=True)
+    st.markdown('<div class="header-yellow">PERFORMANCE DE MARCAS COMPLEMENTARES</div>', unsafe_allow_html=True)
     
     col_f1, col_f2, col_f3, col_f4 = st.columns(4)
     
@@ -239,7 +343,7 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     # ==========================================
     # 4. COMPRAS DOS ÚLTIMOS 30 DIAS
     # ==========================================
-    st.markdown('<div class="section-header">📦 COMPRAS DOS ÚLTIMOS 30 DIAS</div>', unsafe_allow_html=True)
+    st.markdown('<div class="header-yellow">📦 COMPRAS DOS ÚLTIMOS 30 DIAS</div>', unsafe_allow_html=True)
     
     data_limite_30d = HOJE - timedelta(days=30)
     compras_30d = df_grupo[df_grupo["DATA_DT"] >= data_limite_30d]
@@ -247,21 +351,24 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     if compras_30d.empty:
         st.info("ℹ️ O grupo não registrou compras nos últimos 30 dias.")
     else:
-        cols_compras = ["DATA EMISSÃO", "DOCUMENTO", "FABRICANTE", "DESCRIÇÃO", "VENDALITROS", "VALORTOTAL"]
+        cols_compras = ["DATA_DT", "DOCUMENTO", "FABRICANTE", "DESCRIÇÃO", "VENDALITROS", "VALORTOTAL"]
         cols_disponiveis = [c for c in cols_compras if c in compras_30d.columns]
-        st.dataframe(compras_30d[cols_disponiveis].sort_values(by="DATA EMISSÃO", ascending=False), use_container_width=True)
+        tabela_compras = compras_30d[cols_disponiveis].sort_values(by="DATA_DT", ascending=False)
+        
+        with st.expander("Clique aqui para ver o histórico detalhado de notas fiscais"):
+            st.dataframe(tabela_compras.rename(columns={"DATA_DT": "DATA EMISSÃO"}), hide_index=True, use_container_width=True)
 
     # ==========================================
     # 5. CAMPANHAS A OFERTAR
     # ==========================================
-    st.markdown('<div class="section-header">BENEFÍCIOS E CAMPANHAS (OFERTE NO BALCÃO)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="header-yellow">BENEFÍCIOS E CAMPANHAS (OFERTE NO BALCÃO)</div>', unsafe_allow_html=True)
     camp = CAMPANHAS_MAP.get(categoria_grupo, {})
     
     cc1, cc2, cc3, cc4, cc5 = st.columns(5)
     def box_campanha(titulo, valor):
-        return f"""<div style="background-color: white; padding: 15px; border-radius: 8px; border-top: 4px solid #e51e25; box-shadow: 0 2px 4px rgba(0,0,0,0.05); min-height: 110px;">
-        <p style="color: #707070; font-size: 0.8rem; font-weight: 700; margin-bottom: 5px; text-transform: uppercase;">{titulo}</p>
-        <p style="color: #2b2b2b; font-size: 1rem; font-weight: 800; line-height: 1.2;">{valor}</p></div>"""
+        return f"""<div style="background-color: var(--secondary-background-color); padding: 15px; border-radius: 8px; border-top: 4px solid #e51e25; min-height: 110px;">
+        <p style="color: var(--text-color); opacity: 0.7; font-size: 0.8rem; font-weight: 700; margin-bottom: 5px; text-transform: uppercase;">{titulo}</p>
+        <p style="color: var(--text-color); font-size: 1rem; font-weight: 800; line-height: 1.2;">{valor}</p></div>"""
     
     with cc1: st.markdown(box_campanha("Rebates", camp.get('Rebates', '-') or '-'), unsafe_allow_html=True)
     with cc2: st.markdown(box_campanha("Ação 1", camp.get('Camp1', '-') or '-'), unsafe_allow_html=True)
@@ -270,13 +377,42 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     with cc5: st.markdown(box_campanha("Ação 4", camp.get('Camp4', '-') or '-'), unsafe_allow_html=True)
 
     # ==========================================
-    # 6. FINANCEIRO (BOLETOS EM ABERTO)
+    # 6. FINANCEIRO (TÍTULO DINÂMICO E TABELA LIMPA)
     # ==========================================
-    st.markdown('<div class="section-header-red">SITUAÇÃO FINANCEIRA (BOLETOS EM ABERTO)</div>', unsafe_allow_html=True)
-    codigos_grupo = [str(cod).zfill(7) for cod in df_grupo["CÓDIGO CLIENTE"].dropna().astype(int).astype(str).unique()]
-    boletos_grupo = df_receber[df_receber["CLIENTE"].astype(str).apply(lambda x: any(cod in x for cod in codigos_grupo)) & (df_receber["VALOR_NUM"] > 0)]
+    codigos_grupo = (pd.to_numeric(df_grupo["CÓDIGO CLIENTE"], errors="coerce").dropna().astype(int).astype(str).str.zfill(7).unique())
+    boletos_grupo = df_receber[df_receber["CODIGO_CLIENTE"].isin(codigos_grupo) & (df_receber["VALOR_NUM"] > 0)]
 
-    if boletos_grupo.empty: st.success("✅ Tudo limpo! O grupo não possui boletos vencidos ou pendentes.")
+    if boletos_grupo.empty: 
+        # TÍTULO VERDE: Sem boletos
+        st.markdown('<div class="header-green">SITUAÇÃO FINANCEIRA (TUDO EM DIA)</div>', unsafe_allow_html=True)
+        # ALERTA CUSTOMIZADO
+        st.markdown('<div style="background-color: rgba(33, 195, 84, 0.15); border-left: 5px solid #21c354; padding: 15px; border-radius: 5px; color: var(--text-color); font-weight: 600; margin-bottom: 20px;">✅ Tudo limpo! O grupo não possui boletos vencidos ou pendentes.</div>', unsafe_allow_html=True)
+    
     else:
-        st.error(f"🛑 ATENÇÃO: O grupo possui {len(boletos_grupo)} boleto(s) em aberto.")
-        st.dataframe(boletos_grupo[["CLIENTE", "DOCUMENTO", "EMISSÃO", "VENCIMENTO", "VALOR EMABERTO", "ATRASO"]].sort_values(by="VENCIMENTO"), use_container_width=True)
+        df_boletos_view = boletos_grupo.sort_values(by="VENCIMENTO_DT")
+        
+        # Filtra e conta os boletos vencidos matematicamente
+        qtd_vencidos = sum((pd.notna(v) and v < HOJE) for v in df_boletos_view["VENCIMENTO_DT"])
+        
+        if qtd_vencidos > 0:
+            # TÍTULO VERMELHO: Pelo menos um vencido (DATA REMOVIDA)
+            st.markdown('<div class="header-red">SITUAÇÃO FINANCEIRA (BOLETOS VENCIDOS)</div>', unsafe_allow_html=True)
+            texto_alerta = f"O grupo possui {len(boletos_grupo)} boleto(s) em aberto, sendo {qtd_vencidos} vencido(s)."
+        else:
+            # TÍTULO AMARELO: Boletos existem, mas todos no prazo (DATA REMOVIDA)
+            st.markdown('<div class="header-yellow">SITUAÇÃO FINANCEIRA (BOLETOS A VENCER)</div>', unsafe_allow_html=True)
+            texto_alerta = f"O grupo possui {len(boletos_grupo)} boleto(s) em aberto."
+            
+        # ALERTA CUSTOMIZADO AMARELO (Sem símbolo, cor dinâmica pro modo claro/escuro)
+        st.markdown(f'<div style="background-color: rgba(244, 171, 19, 0.15); border-left: 5px solid #f4ab13; padding: 15px; border-radius: 5px; color: var(--text-color); font-weight: 600; margin-bottom: 20px;">{texto_alerta}</div>', unsafe_allow_html=True)
+        
+        colunas_boletos = ["CLIENTE", "DOCUMENTO", "EMISSÃO", "VENCIMENTO", "VALOR EMABERTO", "ATRASO"]
+        
+        # Pinta a linha SÓ se estiver vencido
+        def destacar_vencidos(row):
+            if pd.notna(row["VENCIMENTO_DT"]) and row["VENCIMENTO_DT"] < HOJE:
+                return ['background-color: rgba(229, 30, 37, 0.4); font-weight: bold'] * len(row)
+            return [''] * len(row)
+        
+        tabela_estilizada = df_boletos_view.style.apply(destacar_vencidos, axis=1)
+        st.dataframe(tabela_estilizada, column_order=colunas_boletos, hide_index=True, use_container_width=True)
