@@ -217,6 +217,12 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
 
     grupo_escolhido = st.sidebar.selectbox("Selecione a rede ou cliente", grupos_disponiveis)
 
+    # Mostra a data da última atualização da base no menu lateral
+    st.sidebar.markdown("---")
+    if pd.notna(max_dt_base):
+        data_formatada = max_dt_base.strftime('%d/%m/%Y')
+        st.sidebar.info(f"⏳ **Base de vendas atualizada até:** {data_formatada}")
+        
     # --- PROCESSAMENTO DO GRUPO ---
     df_grupo = df_vendas[df_vendas["Grupo de Cliente"] == grupo_escolhido]
     
