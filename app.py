@@ -217,11 +217,18 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
 
     grupo_escolhido = st.sidebar.selectbox("Selecione a rede ou cliente", grupos_disponiveis)
 
+    # Mostra a data e hora do ÚLTIMO UPLOAD da base no menu lateral
     st.sidebar.markdown("---")
     if path_vendas and os.path.exists(path_vendas):
+        # Lê a data e hora no servidor
         timestamp_upload = os.path.getmtime(path_vendas)
-        data_upload = datetime.fromtimestamp(timestamp_upload)
+        
+        # Converte a data e subtrai 3 horas para ajustar ao fuso do Brasil (UTC-3)
+        data_upload = datetime.fromtimestamp(timestamp_upload) - timedelta(hours=3)
+        
+        # Formata para o padrão brasileiro (Ex: 09/09/2026 às 14:30)
         data_formatada = data_upload.strftime('%d/%m/%Y às %H:%M')
+        
         st.sidebar.info(f"⏳ **Último upload da base:** {data_formatada}")
         
     # --- PROCESSAMENTO DO GRUPO ---
