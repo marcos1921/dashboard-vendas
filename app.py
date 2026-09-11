@@ -183,9 +183,9 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     ANO_ANTERIOR = ANO_ATUAL - 1
     
     max_dt_base = df_vendas["DATA_DT"].max()
-    MES_ATUAL = int(max_dt_base.month) if pd.notna(max_dt_base) else 8
-    HOJE = max_dt_base if pd.notna(max_dt_base) else datetime(ANO_ATUAL, MES_ATUAL, 1)
-
+    MES_ATUAL = int(max_dt_base.month) if pd.notna(max_dt_base) else datetime.now().month
+    # HOJE travado na data real do calendário para análise financeira correta:
+    HOJE = datetime.now()
     # --- FILTROS ---
     st.sidebar.markdown("---")
     st.sidebar.header("🔍 Buscar Cliente")
@@ -217,11 +217,12 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
 
     grupo_escolhido = st.sidebar.selectbox("Selecione a rede ou cliente", grupos_disponiveis)
 
-    # Mostra a data da última atualização da base no menu lateral
     st.sidebar.markdown("---")
-    if pd.notna(max_dt_base):
-        data_formatada = max_dt_base.strftime('%d/%m/%Y')
-        st.sidebar.info(f"⏳ **Base de vendas atualizada até:** {data_formatada}")
+    if path_vendas and os.path.exists(path_vendas):
+        timestamp_upload = os.path.getmtime(path_vendas)
+        data_upload = datetime.fromtimestamp(timestamp_upload)
+        data_formatada = data_upload.strftime('%d/%m/%Y às %H:%M')
+        st.sidebar.info(f"⏳ **Último upload da base:** {data_formatada}")
         
     # --- PROCESSAMENTO DO GRUPO ---
     df_grupo = df_vendas[df_vendas["Grupo de Cliente"] == grupo_escolhido]
