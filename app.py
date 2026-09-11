@@ -137,6 +137,8 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
             "DATA EMISSÃO": ["DATA EMISSO"],
             "CÓDIGO CLIENTE": ["CDIGO CLIENTE"],
             "DESCRIÇÃO": ["DESCRIO"],
+            "MIX BASICO": ["MIX\nBASICO", "MIX BÁSICO"],
+            "HIERARQUIA AGRUPADA": ["hierarquia Agrupada", "HIERARQUIA AGRUPADA"],
         })
         df_r = normalizar_colunas(df_r, {
             "EMISSÃO": ["EMISSO"],
@@ -234,8 +236,9 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     # --- PROCESSAMENTO DO GRUPO ---
     df_grupo = df_vendas[df_vendas["Grupo de Cliente"] == grupo_escolhido]
     
-    df_atual = df_grupo[(df_grupo["ANO"] == ANO_ATUAL) & (df_grupo["MES"] <= MES_ATUAL)]
-    df_anterior = df_grupo[(df_grupo["ANO"] == ANO_ANTERIOR) & (df_grupo["MES"] <= MES_ATUAL)]
+    dia_ano_max = max_dt_base.dayofyear if pd.notna(max_dt_base) else 365
+    df_atual = df_grupo[(df_grupo["ANO"] == ANO_ATUAL) & (df_grupo["DATA_DT"].dt.dayofyear <= dia_ano_max)]
+    df_anterior = df_grupo[(df_grupo["ANO"] == ANO_ANTERIOR) & (df_grupo["DATA_DT"].dt.dayofyear <= dia_ano_max)]
 
     info_grupo = df_grupo.iloc[0]
     categoria_grupo = str(info_grupo.get("CATEGORIA", "Sem Categoria")).strip()
@@ -253,7 +256,8 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     L_ant = df_anterior[df_anterior["FABRICANTE_LAVADO"].str.contains("SUVINIL|SHERWIN", na=False)]["VENDALITROS"].sum()
 
     ultima_compra = fab_principais["DATA_DT"].max()
-    dias_inativo = (HOJE - ultima_compra).days if pd.notna(ultima_compra) else 999
+    data_ref_inatividade = max_dt_base if pd.notna(max_dt_base) else HOJE
+    dias_inativo = (data_ref_inatividade - ultima_compra).days if pd.notna(ultima_compra) else 999
     meses_inativo = dias_inativo // 30
     status_inat = "N/A" if pd.isna(ultima_compra) else (f"⚠️ INATIVO ({meses_inativo} meses)" if meses_inativo >= 3 else f"✅ Ativo")
 
@@ -279,9 +283,9 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     
     cli_suv_sher = df_atual[df_atual["FABRICANTE_LAVADO"].str.contains("SUVINIL|SHERWIN", na=False)]
     
-    vol_alvenaria = cli_suv_sher[cli_suv_sher["MIX\nBASICO"].astype(str).str.upper().str.contains("ALVENARIA", na=False)]["VENDALITROS"].sum()
-    vol_complementos = cli_suv_sher[cli_suv_sher["MIX\nBASICO"].astype(str).str.upper().str.contains("COMPLEMENTO", na=False)]["VENDALITROS"].sum()
-    vol_esmaltes = cli_suv_sher[cli_suv_sher["MIX\nBASICO"].astype(str).str.upper().str.contains("ESM", na=False)]["VENDALITROS"].sum()
+    vol_alvenaria = cli_suv_sher[cli_suv_sher["MIX BASICO"].astype(str).str.upper().str.contains("ALVENARIA", na=False)]["VENDALITROS"].sum()
+    vol_complementos = cli_suv_sher[cli_suv_sher["MIX BASICO"].astype(str).str.upper().str.contains("COMPLEMENTO", na=False)]["VENDALITROS"].sum()
+    vol_esmaltes = cli_suv_sher[cli_suv_sher["MIX BASICO"].astype(str).str.upper().str.contains("ESM", na=False)]["VENDALITROS"].sum()
     
     META_MIX = 14.4
     
@@ -310,8 +314,8 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
             unsafe_allow_html=True
         )
 
-    todas_hierarquias = df_vendas[df_vendas["FABRICANTE_LAVADO"].str.contains("SUVINIL|SHERWIN", na=False)]["hierarquia Agrupada"].dropna().unique()
-    hierarquias_compradas = cli_suv_sher["hierarquia Agrupada"].dropna().unique()
+    todas_hierarquias = df_vendas[df_vendas["FABRICANTE_LAVADO"].str.contains("SUVINIL|SHERWIN", na=False)]["HIERARQUIA AGRUPADA"].dropna().unique()
+    hierarquias_compradas = cli_suv_sher["HIERARQUIA AGRUPADA"].dropna().unique()
     hierarquias_faltantes = [h for h in todas_hierarquias if h not in hierarquias_compradas]
     
     col_h1, col_h2 = st.columns(2)
