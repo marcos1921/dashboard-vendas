@@ -79,15 +79,23 @@ if "autenticado" not in st.session_state:
     st.session_state["autenticado"] = False
 
 if not st.session_state["autenticado"]:
-    st.markdown('<div style="text-align: center; margin-top: 50px;">', unsafe_allow_html=True)
+    # Exibe a logo e o título perfeitamente centralizados via HTML/Base64 para desktop e mobile
+    img_html = ""
     if os.path.exists("logo.png"):
-        st.image("logo.png", width=250)
-    st.markdown('<div class="main-title" style="margin-top: 20px;">PORTAL DE VENDAS</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+        import base64
+        with open("logo.png", "rb") as f:
+            img_b64 = base64.b64encode(f.read()).decode()
+        img_html = f'<img src="data:image/png;base64,{img_b64}" style="max-width: 280px; width: 100%; height: auto; display: block; margin: 0 auto;">'
+
+    st.markdown(f'''
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; margin-top: 5vh;">
+            {img_html}
+            <div class="main-title" style="text-align: center; margin-top: 25px; margin-bottom: 30px;">PORTAL DE VENDAS</div>
+        </div>
+    ''', unsafe_allow_html=True)
     
-    col_log1, col_log2, col_log3 = st.columns([1, 1, 1])
+    col_log1, col_log2, col_log3 = st.columns([1, 1.5, 1])
     with col_log2:
-        st.markdown("<br>", unsafe_allow_html=True)
         senha_digitada = st.text_input("Senha de acesso da equipe:", type="password")
         if st.button("Entrar", use_container_width=True):
             senha_equipe = st.secrets.get("senha_equipe", "vendas123") # Senha padrão se não configurada no secrets
