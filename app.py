@@ -74,6 +74,30 @@ def validar_colunas(df, obrigatorias, nome_base):
     if ausentes:
         raise ValueError(f"A base de {nome_base} não possui as colunas: {', '.join(ausentes)}.")
 
+# --- SISTEMA DE LOGIN DE VENDAS ---
+if "autenticado" not in st.session_state:
+    st.session_state["autenticado"] = False
+
+if not st.session_state["autenticado"]:
+    st.markdown('<div style="text-align: center; margin-top: 50px;">', unsafe_allow_html=True)
+    if os.path.exists("logo.png"):
+        st.image("logo.png", width=250)
+    st.markdown('<div class="main-title" style="margin-top: 20px;">PORTAL DE VENDAS</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    col_log1, col_log2, col_log3 = st.columns([1, 1, 1])
+    with col_log2:
+        st.markdown("<br>", unsafe_allow_html=True)
+        senha_digitada = st.text_input("Senha de acesso da equipe:", type="password")
+        if st.button("Entrar", use_container_width=True):
+            senha_equipe = st.secrets.get("senha_equipe", "vendas123") # Senha padrão se não configurada no secrets
+            if senha_digitada == senha_equipe:
+                st.session_state["autenticado"] = True
+                st.rerun()
+            else:
+                st.error("Senha incorreta!")
+    st.stop()
+
 # --- MENU LATERAL (SIDEBAR) ---
 st.sidebar.image("logo.png", use_container_width=True)
 st.sidebar.divider()
@@ -332,8 +356,14 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     # ==========================================
     st.markdown('<div class="header-yellow">PERFORMANCE DE MARCAS COMPLEMENTARES</div>', unsafe_allow_html=True)
     
-    col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+    col_f0, col_f1, col_f2, col_f3, col_f4 = st.columns(5)
     
+    v_suv_at = df_atual[df_atual["FABRICANTE_LAVADO"].str.contains("SUVINIL", na=False)]["VENDALITROS"].sum()
+    v_suv_ant = df_anterior[df_anterior["FABRICANTE_LAVADO"].str.contains("SUVINIL", na=False)]["VENDALITROS"].sum()
+    dif_suv = f"{(((v_suv_at - v_suv_ant) / v_suv_ant) * 100):+.1f}%" if v_suv_ant > 0 else "Sem base"
+    with col_f0:
+        st.metric("Suvinil (Litros)", f"{v_suv_at:,.0f} L".replace(',', '.') if v_suv_at > 0 else "-", dif_suv if v_suv_at > 0 else None)
+
     v_amais_at = df_atual[df_atual["FABRICANTE_LAVADO"].str.contains("AMAIS", na=False)]["VENDALITROS"].sum()
     v_amais_ant = df_anterior[df_anterior["FABRICANTE_LAVADO"].str.contains("AMAIS", na=False)]["VENDALITROS"].sum()
     dif_amais = f"{(((v_amais_at - v_amais_ant) / v_amais_ant) * 100):+.1f}%" if v_amais_ant > 0 else "Sem base"
@@ -426,8 +456,11 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         
         colunas_boletos = ["CLIENTE", "DOCUMENTO", "EMISSÃO", "VENCIMENTO", "VALOR EMABERTO", "ATRASO"]
         
-        # Pinta a linha SÓ se estiver vencido
+        # Pinta a linha SÓ se estiver vencido, ou de azul se for pedido não faturado
         def destacar_vencidos(row):
+            doc = str(row.get("DOCUMENTO", "")).upper()
+            if "-P/" in doc:
+                return ['background-color: rgba(30, 144, 255, 0.3); font-weight: bold'] * len(row)
             if pd.notna(row["VENCIMENTO_DT"]) and row["VENCIMENTO_DT"] < HOJE:
                 return ['background-color: rgba(229, 30, 37, 0.4); font-weight: bold'] * len(row)
             return [''] * len(row)
