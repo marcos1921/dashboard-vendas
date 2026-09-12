@@ -79,11 +79,8 @@ import streamlit.components.v1 as components
 
 import extra_streamlit_components as stx
 
-@st.cache_resource
-def get_cookie_manager():
-    return stx.CookieManager()
-
-cookie_manager = get_cookie_manager()
+# Instancia o CookieManager diretamente sem cache para evitar o CachedWidgetWarning no Streamlit novo
+cookie_manager = stx.CookieManager(key="cookie_manager")
 
 # --- SISTEMA DE LOGIN DE VENDAS ---
 cookie_auth = cookie_manager.get(cookie="auth_vendas")
