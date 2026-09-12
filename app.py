@@ -78,27 +78,14 @@ import base64
 import streamlit.components.v1 as components
 
 # --- SISTEMA DE LOGIN DE VENDAS ---
-cookie_auth = False
-if hasattr(st, "context"):
-    cookie_auth = (st.context.cookies.get("auth_vendas") == "true")
+# Verifica a URL: Se o link já tem o token, o vendedor já estava logado antes de apertar F5
+token_url = st.query_params.get("auth", "")
 
 if "autenticado" not in st.session_state:
-    st.session_state["autenticado"] = cookie_auth
-
-# Grava o cookie no navegador na primeira vez que autentica
-if st.session_state["autenticado"] and not cookie_auth:
-    components.html(
-        """
-        <script>
-            var d = new Date();
-            d.setTime(d.getTime() + (1*24*60*60*1000)); // 1 dia de validade
-            document.cookie = "auth_vendas=true;expires=" + d.toUTCString() + ";path=/";
-        </script>
-        """, height=0, width=0
-    )
+    st.session_state["autenticado"] = (token_url == "vendas_ok")
 
 if not st.session_state["autenticado"]:
-    # Exibe a logo e o título perfeitamente centralizados via HTML/Base64 para desktop e mobile
+    # Exibe a logo e o título perfeitamente centralizados via HTML/Base64
     img_html = ""
     if os.path.exists("logo.png"):
         with open("logo.png", "rb") as f:
@@ -119,10 +106,15 @@ if not st.session_state["autenticado"]:
             senha_equipe = st.secrets.get("senha_equipe", "vendas123") # Senha padrão se não configurada no secrets
             if senha_digitada == senha_equipe:
                 st.session_state["autenticado"] = True
+                # Grava o token na URL para que qualquer F5 lembre do login nativamente
+                st.query_params["auth"] = "vendas_ok"
                 st.rerun()
             else:
                 st.error("Senha incorreta!")
     st.stop()
+else:
+    # Mantém a URL autenticada enquanto o vendedor navega
+    st.query_params["auth"] = "vendas_ok"
 
 # --- MENU LATERAL (SIDEBAR) ---
 st.sidebar.image("logo.png", use_container_width=True)
