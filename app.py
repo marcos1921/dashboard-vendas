@@ -77,12 +77,19 @@ def validar_colunas(df, obrigatorias, nome_base):
 import base64
 import streamlit.components.v1 as components
 
+import extra_streamlit_components as stx
+
+@st.cache_resource(experimental_allow_widgets=True)
+def get_cookie_manager():
+    return stx.CookieManager()
+
+cookie_manager = get_cookie_manager()
+
 # --- SISTEMA DE LOGIN DE VENDAS ---
-# Verifica a URL: Se o link já tem o token, o vendedor já estava logado antes de apertar F5
-token_url = st.query_params.get("auth", "")
+cookie_auth = cookie_manager.get(cookie="auth_vendas")
 
 if "autenticado" not in st.session_state:
-    st.session_state["autenticado"] = (token_url == "vendas_ok")
+    st.session_state["autenticado"] = (cookie_auth == "true")
 
 if not st.session_state["autenticado"]:
     # Exibe a logo e o título perfeitamente centralizados via HTML/Base64
@@ -105,16 +112,16 @@ if not st.session_state["autenticado"]:
         if st.button("Entrar", use_container_width=True):
             senha_equipe = st.secrets.get("senha_equipe", "vendas123") # Senha padrão se não configurada no secrets
             if senha_digitada == senha_equipe:
+                # Grava o cookie real no navegador do celular (válido por 1 dia = 86400 segundos)
+                cookie_manager.set("auth_vendas", "true", max_age=86400)
                 st.session_state["autenticado"] = True
-                # Grava o token na URL para que qualquer F5 lembre do login nativamente
-                st.query_params["auth"] = "vendas_ok"
+                
+                import time
+                time.sleep(0.5) # Dá tempo para o navegador processar o cookie antes de recarregar
                 st.rerun()
             else:
                 st.error("Senha incorreta!")
     st.stop()
-else:
-    # Mantém a URL autenticada enquanto o vendedor navega
-    st.query_params["auth"] = "vendas_ok"
 
 # --- MENU LATERAL (SIDEBAR) ---
 st.sidebar.image("logo.png", use_container_width=True)
