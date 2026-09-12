@@ -74,15 +74,33 @@ def validar_colunas(df, obrigatorias, nome_base):
     if ausentes:
         raise ValueError(f"A base de {nome_base} não possui as colunas: {', '.join(ausentes)}.")
 
+import base64
+import streamlit.components.v1 as components
+
 # --- SISTEMA DE LOGIN DE VENDAS ---
+cookie_auth = False
+if hasattr(st, "context"):
+    cookie_auth = (st.context.cookies.get("auth_vendas") == "true")
+
 if "autenticado" not in st.session_state:
-    st.session_state["autenticado"] = False
+    st.session_state["autenticado"] = cookie_auth
+
+# Grava o cookie no navegador na primeira vez que autentica
+if st.session_state["autenticado"] and not cookie_auth:
+    components.html(
+        """
+        <script>
+            var d = new Date();
+            d.setTime(d.getTime() + (1*24*60*60*1000)); // 1 dia de validade
+            document.cookie = "auth_vendas=true;expires=" + d.toUTCString() + ";path=/";
+        </script>
+        """, height=0, width=0
+    )
 
 if not st.session_state["autenticado"]:
     # Exibe a logo e o título perfeitamente centralizados via HTML/Base64 para desktop e mobile
     img_html = ""
     if os.path.exists("logo.png"):
-        import base64
         with open("logo.png", "rb") as f:
             img_b64 = base64.b64encode(f.read()).decode()
         img_html = f'<img src="data:image/png;base64,{img_b64}" style="max-width: 280px; width: 100%; height: auto; display: block; margin: 0 auto;">'
