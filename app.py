@@ -112,8 +112,13 @@ if not st.session_state["autenticado"]:
         if st.button("Entrar", use_container_width=True):
             senha_equipe = st.secrets.get("senha_equipe", "vendas123") # Senha padrão se não configurada no secrets
             if senha_digitada == senha_equipe:
-                # Grava o cookie real no navegador do celular (válido por 1 dia = 86400 segundos)
-                cookie_manager.set("auth_vendas", "true", max_age=86400)
+                # Calcula quantos segundos faltam para a meia-noite no fuso horário do Brasil (UTC-3)
+                agora_br = datetime.utcnow() - timedelta(hours=3)
+                meia_noite_br = (agora_br + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+                segundos_restantes = int((meia_noite_br - agora_br).total_seconds())
+
+                # Grava o cookie real no navegador, expirando exatamente à meia-noite
+                cookie_manager.set("auth_vendas", "true", max_age=segundos_restantes)
                 st.session_state["autenticado"] = True
                 
                 import time
