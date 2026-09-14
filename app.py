@@ -83,7 +83,12 @@ import extra_streamlit_components as stx
 cookie_manager = stx.CookieManager(key="cookie_manager")
 
 # --- SISTEMA DE LOGIN DE VENDAS ---
-cookie_auth = cookie_manager.get(cookie="auth_vendas")
+# Usa a API nativa do Streamlit para ler o cookie instantaneamente na primeira execução
+cookie_auth = None
+if hasattr(st, "context") and hasattr(st.context, "cookies"):
+    cookie_auth = st.context.cookies.get("auth_vendas")
+else:
+    cookie_auth = cookie_manager.get(cookie="auth_vendas")
 
 if "autenticado" not in st.session_state:
     st.session_state["autenticado"] = (cookie_auth == "true")
