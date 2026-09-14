@@ -346,7 +346,7 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         def format_falta(vol):
             if vol < META_MIX:
                 falta = META_MIX - vol
-                return f"<span style='color: #ff9999; font-weight: 400; font-size: 0.95rem;'>(Vendeu {vol:.1f} L | Faltam {falta:.1f} L)</span>".replace('.', ',')
+                return f"<span style='color: #ff9999; font-weight: 400; font-size: 0.95rem;'>- Faltam {falta:.1f} L</span>".replace('.', ',')
             return ""
 
         st_alv = f"<div style='color: {'#e51e25; font-weight: 900;' if vol_alvenaria < META_MIX else 'var(--text-color)'}; margin-bottom: 8px; font-size: 1.05rem;'>{'❌' if vol_alvenaria < META_MIX else '✅'} Alvenaria {format_falta(vol_alvenaria)}</div>"
