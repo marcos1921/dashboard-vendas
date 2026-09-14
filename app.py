@@ -195,6 +195,7 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
             "DESCRIÇÃO": ["DESCRIO"],
             "MIX BASICO": ["MIX\nBASICO", "MIX BÁSICO"],
             "HIERARQUIA AGRUPADA": ["hierarquia Agrupada", "HIERARQUIA AGRUPADA"],
+            "SELF COLOR": ["SELF\nCOLOR", "SELF COLOR"],
         })
         df_r = normalizar_colunas(df_r, {
             "EMISSÃO": ["EMISSO"],
@@ -392,7 +393,7 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     # ==========================================
     st.markdown('<div class="header-yellow">PERFORMANCE DE MARCAS COMPLEMENTARES</div>', unsafe_allow_html=True)
     
-    col_f0, col_f1, col_f2, col_f3, col_f4 = st.columns(5)
+    col_f0, col_f1, col_f2, col_f3, col_f4, col_f5 = st.columns(6)
     
     v_suv_at = df_atual[df_atual["FABRICANTE_LAVADO"].str.contains("SUVINIL", na=False)]["VENDALITROS"].sum()
     v_suv_ant = df_anterior[df_anterior["FABRICANTE_LAVADO"].str.contains("SUVINIL", na=False)]["VENDALITROS"].sum()
@@ -412,16 +413,26 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     with col_f2:
         st.metric("Farben (Litros)", f"{v_farb_at:,.0f} L".replace(',', '.') if v_farb_at > 0 else "-", dif_farb if v_farb_at > 0 else None)
 
+    v_self_at = 0
+    v_self_ant = 0
+    if "SELF COLOR" in df_atual.columns:
+        # Pega qualquer valor que remeta a "BASE/ COLORANTE", "SIM", etc. Evita "Não SelfColor".
+        v_self_at = df_atual[df_atual["SELF COLOR"].astype(str).str.upper().str.contains("BASE|COLORANTE|SIM|SELFCOLOR", na=False) & ~df_atual["SELF COLOR"].astype(str).str.upper().str.contains("NÃO|NAO", na=False)]["VENDALITROS"].sum()
+        v_self_ant = df_anterior[df_anterior["SELF COLOR"].astype(str).str.upper().str.contains("BASE|COLORANTE|SIM|SELFCOLOR", na=False) & ~df_anterior["SELF COLOR"].astype(str).str.upper().str.contains("NÃO|NAO", na=False)]["VENDALITROS"].sum()
+    dif_self = f"{(((v_self_at - v_self_ant) / v_self_ant) * 100):+.1f}%" if v_self_ant > 0 else "Sem base"
+    with col_f3:
+        st.metric("Selfcolor (Litros)", f"{v_self_at:,.0f} L".replace(',', '.') if v_self_at > 0 else "-", dif_self if v_self_at > 0 else None)
+
     v_ad_at = df_atual[df_atual["FABRICANTE_LAVADO"].str.contains("ADERE", na=False)]["VALORTOTAL"].sum()
     v_ad_ant = df_anterior[df_anterior["FABRICANTE_LAVADO"].str.contains("ADERE", na=False)]["VALORTOTAL"].sum()
     dif_ad = f"{(((v_ad_at - v_ad_ant) / v_ad_ant) * 100):+.1f}%" if v_ad_ant > 0 else "Sem base"
-    with col_f3:
+    with col_f4:
         st.metric("Adere (Faturamento)", f"R$ {v_ad_at:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.') if v_ad_at > 0 else "-", dif_ad if v_ad_at > 0 else None)
 
     v_con_at = df_atual[df_atual["FABRICANTE_LAVADO"].str.contains("CONDOR", na=False)]["VALORTOTAL"].sum()
     v_con_ant = df_anterior[df_anterior["FABRICANTE_LAVADO"].str.contains("CONDOR", na=False)]["VALORTOTAL"].sum()
     dif_con = f"{(((v_con_at - v_con_ant) / v_con_ant) * 100):+.1f}%" if v_con_ant > 0 else "Sem base"
-    with col_f4:
+    with col_f5:
         st.metric("Condor (Faturamento)", f"R$ {v_con_at:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.') if v_con_at > 0 else "-", dif_con if v_con_at > 0 else None)
 
     # ==========================================
