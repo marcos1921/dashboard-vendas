@@ -195,17 +195,21 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
             "EMISSÃO": ["EMISSO"],
         })
         
-        datas_origem = df_v["DATA EMISSÃO"]
-        numeros_data = pd.to_numeric(datas_origem, errors="coerce")
-        mascara_excel = numeros_data.notna()
-        datas_convertidas = pd.Series(pd.NaT, index=df_v.index, dtype="datetime64[ns]")
-        datas_convertidas.loc[mascara_excel] = pd.to_datetime(
-            numeros_data.loc[mascara_excel], unit="D", origin="1899-12-30", errors="coerce"
-        )
-        datas_convertidas.loc[~mascara_excel] = pd.to_datetime(
-            datas_origem.loc[~mascara_excel], dayfirst=True, errors="coerce"
-        )
-        df_v["DATA_DT"] = datas_convertidas
+        from datetime import datetime
+        def convert_date(val):
+            if pd.isna(val):
+                return pd.NaT
+            if isinstance(val, (pd.Timestamp, datetime)):
+                return pd.to_datetime(val)
+            try:
+                num = float(val)
+                if 20000 < num < 70000:
+                    return pd.to_datetime(num, unit="D", origin="1899-12-30")
+            except (ValueError, TypeError):
+                pass
+            return pd.to_datetime(val, dayfirst=True, errors="coerce")
+
+        df_v["DATA_DT"] = df_v["DATA EMISSÃO"].apply(convert_date)
 
         df_v["ANO"] = df_v["DATA_DT"].dt.year
         df_v["MES"] = df_v["DATA_DT"].dt.month
