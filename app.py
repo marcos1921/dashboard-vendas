@@ -93,45 +93,47 @@ else:
 if "autenticado" not in st.session_state:
     st.session_state["autenticado"] = (cookie_auth == "true")
 
+login_container = st.empty()
+
 if not st.session_state["autenticado"]:
-    # Exibe a logo e o título perfeitamente centralizados via HTML/Base64
-    img_html = ""
-    if os.path.exists("logo.png"):
-        with open("logo.png", "rb") as f:
-            img_b64 = base64.b64encode(f.read()).decode()
-        img_html = f'<img src="data:image/png;base64,{img_b64}" style="max-width: 280px; width: 100%; height: auto; display: block; margin: 0 auto;">'
+    with login_container.container():
+        # Exibe a logo e o título perfeitamente centralizados via HTML/Base64
+        img_html = ""
+        if os.path.exists("logo.png"):
+            with open("logo.png", "rb") as f:
+                img_b64 = base64.b64encode(f.read()).decode()
+            img_html = f'<img src="data:image/png;base64,{img_b64}" style="max-width: 280px; width: 100%; height: auto; display: block; margin: 0 auto;">'
 
-    st.markdown(f'''
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; margin-top: 5vh;">
-            {img_html}
-            <div class="main-title" style="text-align: center; margin-top: 25px; margin-bottom: 30px;">PORTAL DE VENDAS</div>
-        </div>
-    ''', unsafe_allow_html=True)
-    
-    col_log1, col_log2, col_log3 = st.columns([1, 1.5, 1])
-    with col_log2:
-        senha_digitada = st.text_input("Senha de acesso da equipe:", type="password")
-        if st.button("Entrar", use_container_width=True):
-            senha_equipe = st.secrets.get("senha_equipe", "vendas123") # Senha padrão se não configurada no secrets
-            if senha_digitada == senha_equipe:
-                # Calcula quantos segundos faltam para a meia-noite no fuso horário do Brasil (UTC-3)
-                agora_br = datetime.utcnow() - timedelta(hours=3)
-                meia_noite_br = (agora_br + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-                segundos_restantes = int((meia_noite_br - agora_br).total_seconds())
+        st.markdown(f'''
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; margin-top: 5vh;">
+                {img_html}
+                <div class="main-title" style="text-align: center; margin-top: 25px; margin-bottom: 30px;">PORTAL DE VENDAS</div>
+            </div>
+        ''', unsafe_allow_html=True)
+        
+        col_log1, col_log2, col_log3 = st.columns([1, 1.5, 1])
+        with col_log2:
+            senha_digitada = st.text_input("Senha de acesso da equipe:", type="password")
+            if st.button("Entrar", use_container_width=True):
+                senha_equipe = st.secrets.get("senha_equipe", "vendas123") # Senha padrão se não configurada no secrets
+                if senha_digitada == senha_equipe:
+                    # Calcula quantos segundos faltam para a meia-noite no fuso horário do Brasil (UTC-3)
+                    agora_br = datetime.utcnow() - timedelta(hours=3)
+                    meia_noite_br = (agora_br + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+                    segundos_restantes = int((meia_noite_br - agora_br).total_seconds())
 
-                st.session_state["autenticado"] = True
-                
-                # Injeta JavaScript para garantir que o cookie seja salvo de verdade no navegador antes de recarregar
-                components.html(f"""
-                    <script>
-                    document.cookie = "auth_vendas=true; max-age={segundos_restantes}; path=/";
-                    window.parent.location.reload();
-                    </script>
-                """, height=0)
-                st.stop()
-            else:
-                st.error("Senha incorreta!")
-    st.stop()
+                    # Grava o cookie real no navegador, expirando exatamente à meia-noite
+                    cookie_manager.set("auth_vendas", "true", max_age=segundos_restantes)
+                    st.session_state["autenticado"] = True
+                else:
+                    st.error("Senha incorreta!")
+                    
+    # Se ainda não estiver autenticado após clicar, para a execução.
+    if not st.session_state["autenticado"]:
+        st.stop()
+    else:
+        # Se autenticou, limpa o formulário de login para renderizar o resto do app
+        login_container.empty()
 
 # --- MENU LATERAL (SIDEBAR) ---
 st.sidebar.image("logo.png", use_container_width=True)
