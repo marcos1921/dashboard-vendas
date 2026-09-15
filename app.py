@@ -168,9 +168,16 @@ if aba_selecionada == "⚙️ Área do Administrador":
                 with open(ARQ_RECEBER_SERVIDOR, "wb") as arquivo:
                     arquivo.write(up_receber.getbuffer())
                 st.cache_data.clear()
-                st.success("✅ Bases atualizadas com sucesso!")
+                st.success("✅ Bases atualizadas com sucesso! Recarregando...")
+                time.sleep(1.5)
+                st.rerun()
             else:
-                st.error("Faça o upload de ambos os arquivos antes de salvar.")
+                st.error("⚠️ Faça o upload das duas bases antes de salvar.")
+        
+        st.markdown("---")
+        with st.expander("🛠️ Modo Desenvolvedor: Ver Colunas Lidas", expanded=False):
+            st.write("**Colunas Vendas:**", df_vendas.columns.tolist() if 'df_vendas' in locals() else "Nenhuma")
+            st.write("**Colunas Receber:**", df_receber.columns.tolist() if 'df_receber' in locals() else "Nenhuma")
     elif senha:
         st.error("Senha incorreta.")
 
@@ -202,6 +209,7 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
             "CÓDIGO CLIENTE": ["CDIGO CLIENTE", "CODIGO", "COD CLIENTE"],
             "DESCRIÇÃO": ["DESCRIO", "PRODUTO", "DESCRICAO DO PRODUTO"],
             "MIX BASICO": ["MIX\nBASICO", "MIX BÁSICO", "MIX"],
+            "QTD": ["QUANTIDADE", "QTDE", "VOLUMES", "QTD."],
             "HIERARQUIA AGRUPADA": ["hierarquia Agrupada", "HIERARQUIA AGRUPADA", "HIERARQUIA"],
             "SELF COLOR": ["SELF\nCOLOR", "SELF COLOR", "SELFCOLOR"],
         })
@@ -268,6 +276,7 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         mod_r = os.path.getmtime(path_receber)
         df_vendas, df_receber = carregar_dados_blindado(path_vendas, path_receber, mod_v, mod_r)
     except (ValueError, KeyError, Exception) as erro:
+        print("ERROR IN CARREGAR_DADOS:", erro)
         st.error(f"Não foi possível carregar as bases: {erro}")
         st.stop()
 
@@ -405,8 +414,8 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
             unsafe_allow_html=True
         )
 
-    todas_hierarquias = df_vendas[df_vendas["FABRICANTE_LAVADO"].str.contains("SUVINIL|SHERWIN", na=False)]["HIERARQUIA AGRUPADA"].dropna().unique()
-    hierarquias_compradas = cli_suv_sher["HIERARQUIA AGRUPADA"].dropna().unique()
+    todas_hierarquias = df_vendas[df_vendas["FABRICANTE_LAVADO"].str.contains("SUVINIL|SHERWIN", na=False)]["HIERARQUIA AGRUPADA"].dropna().astype(str).unique()
+    hierarquias_compradas = cli_suv_sher["HIERARQUIA AGRUPADA"].dropna().astype(str).unique()
     hierarquias_faltantes = [h for h in todas_hierarquias if h not in hierarquias_compradas]
     
     col_h1, col_h2 = st.columns(2)
