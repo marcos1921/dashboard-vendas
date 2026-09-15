@@ -216,8 +216,9 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         })
         df_r = normalizar_colunas(df_r, {
             "EMISSÃO": ["EMISSO", "DATA EMISSAO", "DT EMISSAO", "EMISSAO", "DATA DE EMISSAO"],
-            "VALOR EMABERTO": ["VALOR EM ABERTO", "VALOR ABERTO", "VLR EM ABERTO", "VLR ABERTO", "SALDO EM ABERTO", "SALDO ABERTO", "SALDO", "VALOR", "VLR", "VALOR A RECEBER", "TITULO ABERTO"],
+            "VALOR EMABERTO": ["VALOREM ABERTO", "VALOR EM ABERTO", "VALOR ABERTO", "VLR EM ABERTO", "VLR ABERTO", "SALDO EM ABERTO", "SALDO ABERTO", "SALDO", "VALOR", "VLR", "VALOR A RECEBER", "TITULO ABERTO"],
             "CLIENTE": ["NOME CLIENTE", "RAZAO SOCIAL", "PARCEIRO", "SACADO", "NOME", "CLIENTE NOME"],
+            "CÓDIGO CLIENTE": ["CÓDIGOCLIENTE", "CODIGO CLIENTE", "CODIGO", "COD CLIENTE", "CDIGO CLIENTE"],
             "DOCUMENTO": ["NOTA FISCAL", "NF", "NUMERO", "TITULO", "DOC", "N DOCUMENTO", "DOCUMENTO NUMERO"],
             "VENCIMENTO": ["DATA VENCIMENTO", "DT VENCIMENTO", "VENC", "DATA DE VENCIMENTO", "VENCIMENTO TITULO"]
         })
@@ -265,9 +266,10 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         valor_aberto = valor_aberto.str.replace(r"[^\d\,\.\-]", "", regex=True)
         valor_aberto = valor_aberto.str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
         df_r["VALOR_NUM"] = pd.to_numeric(valor_aberto, errors="coerce").fillna(0)
-        df_r["CODIGO_CLIENTE"] = (
-            df_r["CLIENTE"].astype(str).str.extract(r"(\d+)", expand=False).str.zfill(7)
-        )
+        if "CÓDIGO CLIENTE" in df_r.columns:
+            df_r["CODIGO_CLIENTE"] = df_r["CÓDIGO CLIENTE"].astype(str).str.extract(r"(\d+)", expand=False).str.zfill(7)
+        else:
+            df_r["CODIGO_CLIENTE"] = df_r["CLIENTE"].astype(str).str.extract(r"(\d+)", expand=False).str.zfill(7)
         df_r["VENCIMENTO_DT"] = pd.to_datetime(df_r["VENCIMENTO"], dayfirst=True, errors="coerce")
             
         return df_v, df_r
