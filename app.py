@@ -181,8 +181,11 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     st.markdown('<div class="main-title">DASHBOARD VENDAS</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-title">INTELIGÊNCIA COMERCIAL EM CAMPO</div>', unsafe_allow_html=True)
 
-    path_vendas = ARQ_VENDAS_SERVIDOR if os.path.exists(ARQ_VENDAS_SERVIDOR) else ("Base de vendas.xlsx" if os.path.exists("Base de vendas.xlsx") else None)
-    csv_local = [f for f in os.listdir('.') if f.endswith('.csv') and 'receber' in f.lower()]
+    # Tenta usar as bases do servidor (dados_atuais/). Se não existirem, pega qualquer XLSX e CSV na raiz.
+    excel_local = [f for f in os.listdir('.') if f.endswith(('.xlsx', '.xls')) and f != 'app.py']
+    csv_local = [f for f in os.listdir('.') if f.endswith('.csv')]
+    
+    path_vendas = ARQ_VENDAS_SERVIDOR if os.path.exists(ARQ_VENDAS_SERVIDOR) else (excel_local[0] if excel_local else None)
     path_receber = ARQ_RECEBER_SERVIDOR if os.path.exists(ARQ_RECEBER_SERVIDOR) else (csv_local[0] if csv_local else None)
 
     if not path_vendas or not path_receber:
@@ -190,7 +193,7 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         st.stop()
 
     @st.cache_data(show_spinner="Processando inteligência comercial e corrigindo datas...")
-    def carregar_dados_blindado(vendas_file, receber_file):
+    def carregar_dados_blindado(vendas_file, receber_file, mod_vendas, mod_receber):
         df_v = pd.read_excel(vendas_file, sheet_name=0)
         df_r = pd.read_csv(receber_file, encoding="latin1", sep=None, engine="python")
 
@@ -261,8 +264,10 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         return df_v, df_r
 
     try:
-        df_vendas, df_receber = carregar_dados_blindado(path_vendas, path_receber)
-    except (ValueError, KeyError) as erro:
+        mod_v = os.path.getmtime(path_vendas)
+        mod_r = os.path.getmtime(path_receber)
+        df_vendas, df_receber = carregar_dados_blindado(path_vendas, path_receber, mod_v, mod_r)
+    except (ValueError, KeyError, Exception) as erro:
         st.error(f"Não foi possível carregar as bases: {erro}")
         st.stop()
 
