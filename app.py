@@ -86,13 +86,19 @@ cookie_manager = stx.CookieManager(key="cookie_manager")
 # --- SISTEMA DE LOGIN DE VENDAS ---
 # Usa a API nativa do Streamlit para ler o cookie instantaneamente na primeira execução
 cookie_auth = None
-if hasattr(st, "context") and hasattr(st.context, "cookies"):
-    cookie_auth = st.context.cookies.get("auth_vendas")
-else:
-    cookie_auth = cookie_manager.get(cookie="auth_vendas")
-
 if "autenticado" not in st.session_state:
-    st.session_state["autenticado"] = (cookie_auth == "true")
+    st.session_state["autenticado"] = False
+
+# 1. Tenta ler instantaneamente pela API nativa (Streamlit 1.35+)
+if hasattr(st, "context") and hasattr(st.context, "cookies"):
+    if st.context.cookies.get("auth_vendas") == "true":
+        st.session_state["autenticado"] = True
+
+# 2. Fallback robusto via CookieManager do frontend
+cookie_auth_stx = cookie_manager.get(cookie="auth_vendas")
+if cookie_auth_stx == "true" and not st.session_state["autenticado"]:
+    st.session_state["autenticado"] = True
+    st.rerun()
 
 login_container = st.empty()
 
