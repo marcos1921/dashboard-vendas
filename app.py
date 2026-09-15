@@ -215,12 +215,13 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
             "SELF COLOR": ["SELF\nCOLOR", "SELF COLOR", "SELFCOLOR"],
         })
         df_r = normalizar_colunas(df_r, {
-            "EMISSÃO": ["EMISSO", "DATA EMISSAO", "DT EMISSAO", "EMISSAO", "DATA DE EMISSAO"],
+            "EMISSÃO": ["DATAEMISSÃO", "DATAEMISSAO", "EMISSO", "DATA EMISSAO", "DT EMISSAO", "EMISSAO", "DATA DE EMISSAO"],
             "VALOR EMABERTO": ["VALOREM ABERTO", "VALOR EM ABERTO", "VALOR ABERTO", "VLR EM ABERTO", "VLR ABERTO", "SALDO EM ABERTO", "SALDO ABERTO", "SALDO", "VALOR", "VLR", "VALOR A RECEBER", "TITULO ABERTO"],
             "CLIENTE": ["NOME CLIENTE", "RAZAO SOCIAL", "PARCEIRO", "SACADO", "NOME", "CLIENTE NOME"],
             "CÓDIGO CLIENTE": ["CÓDIGOCLIENTE", "CODIGO CLIENTE", "CODIGO", "COD CLIENTE", "CDIGO CLIENTE"],
             "DOCUMENTO": ["NOTA FISCAL", "NF", "NUMERO", "TITULO", "DOC", "N DOCUMENTO", "DOCUMENTO NUMERO"],
-            "VENCIMENTO": ["DATA VENCIMENTO", "DT VENCIMENTO", "VENC", "DATA DE VENCIMENTO", "VENCIMENTO TITULO"]
+            "VENCIMENTO": ["DATAVENCIMENTO", "DATA VENCIMENTO", "DT VENCIMENTO", "VENC", "DATA DE VENCIMENTO", "VENCIMENTO TITULO"],
+            "ATRASO": ["DIASATRASO", "DIAS DE ATRASO", "DIAS ATRASO", "DIAS"]
         })
         
         # Caso extremo: Se ainda não tiver a coluna, tenta encontrar qualquer coluna com 'ABERTO' ou 'SALDO' ou assume zero
@@ -550,14 +551,22 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         colunas_desejadas = ["CLIENTE", "DOCUMENTO", "EMISSÃO", "VENCIMENTO", "VALOR EMABERTO", "ATRASO"]
         colunas_boletos = [c for c in colunas_desejadas if c in df_boletos_view.columns]
         
-        # Pinta a linha SÓ se estiver vencido, ou de azul se for pedido não faturado
         def destacar_vencidos(row):
             doc = str(row.get("DOCUMENTO", "")).upper()
-            if "-P/" in doc:
-                return ['background-color: rgba(30, 144, 255, 0.3); font-weight: bold'] * len(colunas_boletos)
-            if pd.notna(row.get("VENCIMENTO_DT")) and row["VENCIMENTO_DT"] < HOJE:
-                return ['background-color: rgba(229, 30, 37, 0.4); font-weight: bold'] * len(colunas_boletos)
-            return [''] * len(colunas_boletos)
+            
+            # Fallback for date check since VENCIMENTO_DT is hidden
+            venc_val = row.get("VENCIMENTO")
+            try:
+                venc = pd.to_datetime(venc_val, dayfirst=True) if pd.notna(venc_val) else None
+                if pd.notna(venc) and venc < HOJE:
+                    return ['background-color: rgba(229, 30, 37, 0.4); font-weight: bold'] * len(row)
+            except:
+                pass
+                
+            if "-P" in doc:
+                return ['background-color: rgba(30, 144, 255, 0.3); font-weight: bold'] * len(row)
+                
+            return [''] * len(row)
         
         tabela_estilizada = df_boletos_view[colunas_boletos].style.apply(destacar_vencidos, axis=1)
         st.dataframe(tabela_estilizada, use_container_width=True, hide_index=True)
