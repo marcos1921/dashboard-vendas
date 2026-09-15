@@ -5,6 +5,7 @@ from html import escape
 import os
 import re
 import unicodedata
+import time
 
 # --- CONFIGURAÇÃO DE PÁGINA ---
 st.set_page_config(page_title="Dashboard Vendas", page_icon="⚡", layout="wide")
