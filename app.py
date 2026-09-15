@@ -249,10 +249,12 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         df_v["VALORTOTAL"] = pd.to_numeric(df_v["VALORTOTAL"], errors="coerce").fillna(0)
         
         valor_aberto = df_r["VALOR EMABERTO"].astype(str).str.strip()
+        # Remove letras, R$ e espaços, mantendo apenas números, vírgula, ponto e sinal de menos
+        valor_aberto = valor_aberto.str.replace(r"[^\d\,\.\-]", "", regex=True)
         valor_aberto = valor_aberto.str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
         df_r["VALOR_NUM"] = pd.to_numeric(valor_aberto, errors="coerce").fillna(0)
         df_r["CODIGO_CLIENTE"] = (
-            df_r["CLIENTE"].astype(str).str.extract(r"^\s*(\d+)", expand=False).str.zfill(7)
+            df_r["CLIENTE"].astype(str).str.extract(r"(\d+)", expand=False).str.zfill(7)
         )
         df_r["VENCIMENTO_DT"] = pd.to_datetime(df_r["VENCIMENTO"], dayfirst=True, errors="coerce")
             
@@ -528,16 +530,17 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         # ALERTA CUSTOMIZADO AMARELO (Sem símbolo, cor dinâmica pro modo claro/escuro)
         st.markdown(f'<div style="background-color: rgba(244, 171, 19, 0.15); border-left: 5px solid #f4ab13; padding: 15px; border-radius: 5px; color: var(--text-color); font-weight: 600; margin-bottom: 20px;">{texto_alerta}</div>', unsafe_allow_html=True)
         
-        colunas_boletos = ["CLIENTE", "DOCUMENTO", "EMISSÃO", "VENCIMENTO", "VALOR EMABERTO", "ATRASO"]
+        colunas_desejadas = ["CLIENTE", "DOCUMENTO", "EMISSÃO", "VENCIMENTO", "VALOR EMABERTO", "ATRASO"]
+        colunas_boletos = [c for c in colunas_desejadas if c in df_boletos_view.columns]
         
         # Pinta a linha SÓ se estiver vencido, ou de azul se for pedido não faturado
         def destacar_vencidos(row):
             doc = str(row.get("DOCUMENTO", "")).upper()
             if "-P/" in doc:
-                return ['background-color: rgba(30, 144, 255, 0.3); font-weight: bold'] * len(row)
-            if pd.notna(row["VENCIMENTO_DT"]) and row["VENCIMENTO_DT"] < HOJE:
-                return ['background-color: rgba(229, 30, 37, 0.4); font-weight: bold'] * len(row)
-            return [''] * len(row)
+                return ['background-color: rgba(30, 144, 255, 0.3); font-weight: bold'] * len(colunas_boletos)
+            if pd.notna(row.get("VENCIMENTO_DT")) and row["VENCIMENTO_DT"] < HOJE:
+                return ['background-color: rgba(229, 30, 37, 0.4); font-weight: bold'] * len(colunas_boletos)
+            return [''] * len(colunas_boletos)
         
-        tabela_estilizada = df_boletos_view.style.apply(destacar_vencidos, axis=1)
-        st.dataframe(tabela_estilizada, column_order=colunas_boletos, hide_index=True, use_container_width=True)
+        tabela_estilizada = df_boletos_view[colunas_boletos].style.apply(destacar_vencidos, axis=1)
+        st.dataframe(tabela_estilizada, use_container_width=True, hide_index=True)
