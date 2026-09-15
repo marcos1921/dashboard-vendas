@@ -195,16 +195,34 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         df_r = pd.read_csv(receber_file, encoding="latin1", sep=None, engine="python")
 
         df_v = normalizar_colunas(df_v, {
-            "DATA EMISSÃO": ["DATA EMISSO"],
-            "CÓDIGO CLIENTE": ["CDIGO CLIENTE"],
-            "DESCRIÇÃO": ["DESCRIO"],
-            "MIX BASICO": ["MIX\nBASICO", "MIX BÁSICO"],
-            "HIERARQUIA AGRUPADA": ["hierarquia Agrupada", "HIERARQUIA AGRUPADA"],
-            "SELF COLOR": ["SELF\nCOLOR", "SELF COLOR"],
+            "DATA EMISSÃO": ["DATA EMISSO", "DATA", "EMISSAO"],
+            "CÓDIGO CLIENTE": ["CDIGO CLIENTE", "CODIGO", "COD CLIENTE"],
+            "DESCRIÇÃO": ["DESCRIO", "PRODUTO", "DESCRICAO DO PRODUTO"],
+            "MIX BASICO": ["MIX\nBASICO", "MIX BÁSICO", "MIX"],
+            "HIERARQUIA AGRUPADA": ["hierarquia Agrupada", "HIERARQUIA AGRUPADA", "HIERARQUIA"],
+            "SELF COLOR": ["SELF\nCOLOR", "SELF COLOR", "SELFCOLOR"],
         })
         df_r = normalizar_colunas(df_r, {
-            "EMISSÃO": ["EMISSO"],
+            "EMISSÃO": ["EMISSO", "DATA EMISSAO", "DT EMISSAO", "EMISSAO", "DATA DE EMISSAO"],
+            "VALOR EMABERTO": ["VALOR EM ABERTO", "VALOR ABERTO", "VLR EM ABERTO", "VLR ABERTO", "SALDO EM ABERTO", "SALDO ABERTO", "SALDO", "VALOR", "VLR", "VALOR A RECEBER", "TITULO ABERTO"],
+            "CLIENTE": ["NOME CLIENTE", "RAZAO SOCIAL", "PARCEIRO", "SACADO", "NOME", "CLIENTE NOME"],
+            "DOCUMENTO": ["NOTA FISCAL", "NF", "NUMERO", "TITULO", "DOC", "N DOCUMENTO", "DOCUMENTO NUMERO"],
+            "VENCIMENTO": ["DATA VENCIMENTO", "DT VENCIMENTO", "VENC", "DATA DE VENCIMENTO", "VENCIMENTO TITULO"]
         })
+        
+        # Caso extremo: Se ainda não tiver a coluna, tenta encontrar qualquer coluna com 'ABERTO' ou 'SALDO' ou assume zero
+        if "VALOR EMABERTO" not in df_r.columns:
+            possiveis = [c for c in df_r.columns if "ABERTO" in str(c).upper() or "SALDO" in str(c).upper()]
+            if possiveis:
+                df_r.rename(columns={possiveis[0]: "VALOR EMABERTO"}, inplace=True)
+            else:
+                df_r["VALOR EMABERTO"] = "0"
+                
+        if "CLIENTE" not in df_r.columns:
+            df_r["CLIENTE"] = "NÃO INFORMADO"
+            
+        if "VENCIMENTO" not in df_r.columns:
+            df_r["VENCIMENTO"] = None
         
         from datetime import datetime
         def convert_date(val):
