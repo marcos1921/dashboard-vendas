@@ -163,17 +163,19 @@ if aba_selecionada == "⚙️ Área do Administrador":
         up_vendas = st.file_uploader("1. Substituir Base de Vendas (Excel)", type=["xlsx"])
         up_receber = st.file_uploader("2. Substituir Base de Receber (CSV)", type=["csv"])
         if st.button("💾 Salvar Novas Bases"):
-            if up_vendas is not None and up_receber is not None:
-                with open(ARQ_VENDAS_SERVIDOR, "wb") as arquivo:
-                    arquivo.write(up_vendas.getbuffer())
-                with open(ARQ_RECEBER_SERVIDOR, "wb") as arquivo:
-                    arquivo.write(up_receber.getbuffer())
+            if up_vendas is not None or up_receber is not None:
+                if up_vendas is not None:
+                    with open(ARQ_VENDAS_SERVIDOR, "wb") as arquivo:
+                        arquivo.write(up_vendas.getbuffer())
+                if up_receber is not None:
+                    with open(ARQ_RECEBER_SERVIDOR, "wb") as arquivo:
+                        arquivo.write(up_receber.getbuffer())
                 st.cache_data.clear()
                 st.success("✅ Bases atualizadas com sucesso! Recarregando...")
                 time.sleep(1.5)
                 st.rerun()
             else:
-                st.error("⚠️ Faça o upload das duas bases antes de salvar.")
+                st.warning("⚠️ Faça o upload de pelo menos uma base antes de salvar.")
         
         st.markdown("---")
         with st.expander("🛠️ Modo Desenvolvedor: Ver Colunas Lidas", expanded=False):
