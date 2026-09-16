@@ -650,18 +650,34 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         df_ranking_local["Total pts"] = df_ranking_local["Total pts"].apply(limpa_num)
         df_ranking_local = df_ranking_local.fillna("-").replace("nan", "-")
 
-        def marca_cliente(nome):
-            if str(nome).strip().upper() == str(grupo_escolhido).strip().upper():
-                return f"⭐ {nome} ⭐"
-            return nome
-            
-        df_ranking_local["Grupo de Cliente"] = df_ranking_local["Grupo de Cliente"].apply(marca_cliente)
+        # Constrói uma tabela HTML limpa que respeita o tema Claro/Escuro do Streamlit
+        html_table = '<table style="width:100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95rem;">'
+        html_table += '<thead><tr style="border-bottom: 2px solid #f4ab13; text-align: left; color: var(--text-color); opacity: 0.8;">'
+        html_table += '<th style="padding: 10px;">Posição</th><th style="padding: 10px;">Grupo de Cliente</th><th style="padding: 10px;">Total pts</th><th style="padding: 10px;">Classificação</th>'
+        html_table += '</tr></thead><tbody>'
         
-        st.dataframe(
-            df_ranking_local[["Posição", "Grupo de Cliente", "Total pts", "Classificação"]],
-            use_container_width=True,
-            hide_index=True
-        )
+        for idx, row in df_ranking_local.iterrows():
+            pos = row["Posição"]
+            grupo = row["Grupo de Cliente"]
+            pts = row["Total pts"]
+            classif = row["Classificação"]
+            
+            # Destaca a linha do cliente selecionado com um fundo amarelo suave
+            if str(grupo).strip().upper() == str(grupo_escolhido).strip().upper():
+                row_style = 'background-color: rgba(244, 171, 19, 0.25); font-weight: bold;'
+            else:
+                row_style = 'border-bottom: 1px solid rgba(128, 128, 128, 0.2);'
+                
+            html_table += f'<tr style="{row_style}">'
+            html_table += f'<td style="padding: 10px;">{pos}</td>'
+            html_table += f'<td style="padding: 10px;">{grupo}</td>'
+            html_table += f'<td style="padding: 10px;">{pts}</td>'
+            html_table += f'<td style="padding: 10px;">{classif}</td>'
+            html_table += '</tr>'
+            
+        html_table += '</tbody></table>'
+        
+        st.markdown(html_table, unsafe_allow_html=True)
 
     # ==========================================
     # 6. FINANCEIRO (TÍTULO DINÂMICO E TABELA LIMPA)
