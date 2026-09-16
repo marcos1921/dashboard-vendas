@@ -650,38 +650,18 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         df_ranking_local["Total pts"] = df_ranking_local["Total pts"].apply(limpa_num)
         df_ranking_local = df_ranking_local.fillna("-").replace("nan", "-")
 
-        # Constrói uma tabela HTML com rolagem horizontal para celular (overflow-x: auto)
-        html_table = '<div style="overflow-x: auto; width: 100%;">'
-        html_table += '<table style="width:100%; border-collapse: collapse; margin-top: 10px; font-size: 0.90rem; font-family: sans-serif; background-color: white; color: black; border-radius: 5px; overflow: hidden;">'
-        html_table += '<thead style="background-color: #f0f2f6; border-bottom: 1px solid #e0e0e0; text-align: left;"><tr>'
-        html_table += '<th style="padding: 12px 10px; white-space: nowrap;">Posição</th>'
-        html_table += '<th style="padding: 12px 10px; white-space: nowrap;">Grupo de Cliente</th>'
-        html_table += '<th style="padding: 12px 10px; white-space: nowrap;">Total pts</th>'
-        html_table += '<th style="padding: 12px 10px; white-space: nowrap;">Classificação</th>'
-        html_table += '</tr></thead><tbody>'
-        
-        for idx, row in df_ranking_local.iterrows():
-            pos = row["Posição"]
-            grupo = row["Grupo de Cliente"]
-            pts = row["Total pts"]
-            classif = row["Classificação"]
+        def highlight_client(row):
+            if str(row["Grupo de Cliente"]).strip().upper() == str(grupo_escolhido).strip().upper():
+                return ['background-color: #f4ab13; color: #000000; font-weight: bold'] * len(row)
+            return [''] * len(row)
             
-            # Pinta a linha do cliente com fundo amarelo, as outras ficam brancas
-            if str(grupo).strip().upper() == str(grupo_escolhido).strip().upper():
-                row_style = 'background-color: #f4ab13; font-weight: bold; border-bottom: 1px solid #e0e0e0;'
-            else:
-                row_style = 'border-bottom: 1px solid #e0e0e0;'
-                
-            html_table += f'<tr style="{row_style}">'
-            html_table += f'<td style="padding: 10px; white-space: nowrap;">{pos}</td>'
-            html_table += f'<td style="padding: 10px; white-space: nowrap;">{grupo}</td>'
-            html_table += f'<td style="padding: 10px; white-space: nowrap;">{pts}</td>'
-            html_table += f'<td style="padding: 10px; white-space: nowrap;">{classif}</td>'
-            html_table += '</tr>'
-            
-        html_table += '</tbody></table></div>'
+        df_view = df_ranking_local[["Posição", "Grupo de Cliente", "Total pts", "Classificação"]]
         
-        st.markdown(html_table, unsafe_allow_html=True)
+        st.dataframe(
+            df_view.style.apply(highlight_client, axis=1),
+            use_container_width=True,
+            hide_index=True
+        )
 
     # ==========================================
     # 6. FINANCEIRO (TÍTULO DINÂMICO E TABELA LIMPA)
