@@ -289,19 +289,31 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         if not camp_file or not os.path.exists(camp_file):
             return None
         try:
-            df = pd.read_excel(camp_file, sheet_name=0)
-            # Verifica se o cabeçalho verdadeiro está numa linha abaixo (como na imagem, linha 2 -> index 1)
-            for i in range(min(5, len(df))):
-                row_str = " ".join([str(x) for x in df.iloc[i].values]).lower()
-                if "posição" in row_str or "classifica" in row_str or "código" in row_str:
-                    df = pd.read_excel(camp_file, sheet_name=0, header=i+1)
-                    break
-            df.columns = [str(c).strip() for c in df.columns]
+            # Lê sem cabeçalho para não quebrar com células mescladas do Excel
+            df = pd.read_excel(camp_file, sheet_name=0, header=None)
             
-            # Tenta pegar código ou grupo
-            if "Código" in df.columns:
-                df["CODIGO_BUSCA"] = df["Código"].astype(str).str.extract(r"(\d+)", expand=False).str.zfill(7)
-            return df
+            col_grupo = None
+            col_pos = None
+            col_pts = None
+            
+            # Varre as primeiras 5 linhas e todas as colunas para encontrar as posições exatas
+            for row_idx in range(min(5, len(df))):
+                for col_idx in range(len(df.columns)):
+                    val = str(df.iloc[row_idx, col_idx]).strip().lower()
+                    if val == "grupo de cliente": col_grupo = col_idx
+                    elif val in ["posição", "posicao"]: col_pos = col_idx
+                    elif val == "total": col_pts = col_idx
+                    
+            if col_grupo is not None and col_pos is not None:
+                df_clean = pd.DataFrame({
+                    "Grupo de Cliente": df.iloc[:, col_grupo].astype(str),
+                    "Posição": df.iloc[:, col_pos],
+                    "Total pts": df.iloc[:, col_pts] if col_pts is not None else ""
+                })
+                # Filtra valores inválidos da coluna de grupo
+                df_clean = df_clean[~df_clean["Grupo de Cliente"].isin(["nan", "Grupo de Cliente", "Soma de VENDALITROS"])]
+                return df_clean
+            return None
         except Exception as e:
             print("Erro ao ler campanhas:", e)
             return None
