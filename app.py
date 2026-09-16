@@ -147,6 +147,7 @@ PASTA_DADOS = "dados_atuais"
 if not os.path.exists(PASTA_DADOS): os.makedirs(PASTA_DADOS)
 ARQ_VENDAS_SERVIDOR = os.path.join(PASTA_DADOS, "vendas.xlsx")
 ARQ_RECEBER_SERVIDOR = os.path.join(PASTA_DADOS, "receber.csv")
+ARQ_CAMPANHAS_SERVIDOR = os.path.join(PASTA_DADOS, "campanhas.xlsx")
 
 # ==========================================
 # ÁREA DO ADMINISTRADOR
@@ -162,14 +163,18 @@ if aba_selecionada == "⚙️ Área do Administrador":
     elif senha == senha_admin:
         up_vendas = st.file_uploader("1. Substituir Base de Vendas (Excel)", type=["xlsx"])
         up_receber = st.file_uploader("2. Substituir Base de Receber (CSV)", type=["csv"])
+        up_campanhas = st.file_uploader("3. Substituir Base de Campanhas (Excel)", type=["xlsx", "xls"])
         if st.button("💾 Salvar Novas Bases"):
-            if up_vendas is not None or up_receber is not None:
+            if up_vendas is not None or up_receber is not None or up_campanhas is not None:
                 if up_vendas is not None:
                     with open(ARQ_VENDAS_SERVIDOR, "wb") as arquivo:
                         arquivo.write(up_vendas.getbuffer())
                 if up_receber is not None:
                     with open(ARQ_RECEBER_SERVIDOR, "wb") as arquivo:
                         arquivo.write(up_receber.getbuffer())
+                if up_campanhas is not None:
+                    with open(ARQ_CAMPANHAS_SERVIDOR, "wb") as arquivo:
+                        arquivo.write(up_campanhas.getbuffer())
                 st.cache_data.clear()
                 st.success("✅ Bases atualizadas com sucesso! Recarregando...")
                 time.sleep(1.5)
@@ -192,11 +197,12 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     st.markdown('<div class="sub-title">INTELIGÊNCIA COMERCIAL EM CAMPO</div>', unsafe_allow_html=True)
 
     # Tenta usar as bases do servidor (dados_atuais/). Se não existirem, pega qualquer XLSX e CSV na raiz.
-    excel_local = [f for f in os.listdir('.') if f.endswith(('.xlsx', '.xls')) and f != 'app.py']
+    excel_local = [f for f in os.listdir('.') if f.endswith(('.xlsx', '.xls')) and f != 'app.py' and 'campanhas' not in f.lower()]
     csv_local = [f for f in os.listdir('.') if f.endswith('.csv')]
     
     path_vendas = ARQ_VENDAS_SERVIDOR if os.path.exists(ARQ_VENDAS_SERVIDOR) else (excel_local[0] if excel_local else None)
     path_receber = ARQ_RECEBER_SERVIDOR if os.path.exists(ARQ_RECEBER_SERVIDOR) else (csv_local[0] if csv_local else None)
+    path_campanhas = ARQ_CAMPANHAS_SERVIDOR if os.path.exists(ARQ_CAMPANHAS_SERVIDOR) else None
 
     if not path_vendas or not path_receber:
         st.warning("⏳ **Atenção:** Arquivos não encontrados. Vá à **Área do Administrador** e faça o upload das duas bases.")
@@ -277,10 +283,38 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
             
         return df_v, df_r
 
+    @st.cache_data(show_spinner="Processando base de campanhas...")
+    def carregar_campanhas(camp_file, mod_camp):
+        if not camp_file or not os.path.exists(camp_file):
+            return None
+        try:
+            df = pd.read_excel(camp_file, sheet_name=0)
+            # Verifica se o cabeçalho verdadeiro está numa linha abaixo (como na imagem, linha 2 -> index 1)
+            for i in range(min(5, len(df))):
+                row_str = " ".join([str(x) for x in df.iloc[i].values]).lower()
+                if "posição" in row_str or "classifica" in row_str or "código" in row_str:
+                    df = pd.read_excel(camp_file, sheet_name=0, header=i+1)
+                    break
+            df.columns = [str(c).strip() for c in df.columns]
+            
+            # Tenta pegar código ou grupo
+            if "Código" in df.columns:
+                df["CODIGO_BUSCA"] = df["Código"].astype(str).str.extract(r"(\d+)", expand=False).str.zfill(7)
+            return df
+        except Exception as e:
+            print("Erro ao ler campanhas:", e)
+            return None
+
     try:
         mod_v = os.path.getmtime(path_vendas)
         mod_r = os.path.getmtime(path_receber)
         df_vendas, df_receber = carregar_dados_blindado(path_vendas, path_receber, mod_v, mod_r)
+        
+        df_campanhas = None
+        if path_campanhas:
+            mod_c = os.path.getmtime(path_campanhas)
+            df_campanhas = carregar_campanhas(path_campanhas, mod_c)
+            
     except (ValueError, KeyError, Exception) as erro:
         print("ERROR IN CARREGAR_DADOS:", erro)
         st.error(f"Não foi possível carregar as bases: {erro}")
@@ -506,6 +540,31 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     # 5. CAMPANHAS A OFERTAR
     # ==========================================
     st.markdown('<div class="header-yellow">BENEFÍCIOS E CAMPANHAS (OFERTE NO BALCÃO)</div>', unsafe_allow_html=True)
+    
+    # --- DADOS DA PLANILHA DE CAMPANHA (Se existir) ---
+    if 'df_campanhas' in locals() and df_campanhas is not None:
+        codigos_tmp = pd.to_numeric(df_grupo["CÓDIGO CLIENTE"], errors="coerce").dropna().astype(int).astype(str).str.zfill(7).unique()
+        cod_busca = str(codigos_tmp[0]) if len(codigos_tmp) > 0 else ""
+        cliente_camp = df_campanhas[df_campanhas["CODIGO_BUSCA"] == cod_busca]
+        if not cliente_camp.empty:
+            linha_c = cliente_camp.iloc[0]
+            pos = linha_c.get("Posição", "-")
+            pts = linha_c.get("Total pts", "-")
+            classif = linha_c.get("Classifica", "-")
+            
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #f4ab13 0%, #ff8c00 100%); padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; color: #000; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div>
+                    <h4 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: #000;">🏆 RESULTADO DA APURAÇÃO (STOCK CAR / VAMOS JUNTOS)</h4>
+                    <p style="margin: 5px 0 0 0; font-size: 0.95rem; font-weight: 600; opacity: 0.9;">Classificação atual do cliente na campanha</p>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 2rem; font-weight: 900; line-height: 1;">{pos}º LUGAR</div>
+                    <div style="font-size: 1rem; font-weight: 700; opacity: 0.8;">{pts} PTS | {classif}</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
     camp = CAMPANHAS_MAP.get(categoria_grupo, {})
     
     cc1, cc2, cc3, cc4, cc5 = st.columns(5)
