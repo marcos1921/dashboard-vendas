@@ -293,22 +293,28 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
             df = pd.read_excel(camp_file, sheet_name=0, header=None)
             
             col_grupo = None
+            col_cat = None
             col_pos = None
             col_pts = None
+            col_classif = None
             
             # Varre as primeiras 5 linhas e todas as colunas para encontrar as posições exatas
             for row_idx in range(min(5, len(df))):
                 for col_idx in range(len(df.columns)):
                     val = str(df.iloc[row_idx, col_idx]).strip().lower()
                     if val == "grupo de cliente": col_grupo = col_idx
+                    elif "categor" in val: col_cat = col_idx
                     elif val in ["posição", "posicao"]: col_pos = col_idx
                     elif val == "total": col_pts = col_idx
+                    elif "classifica" in val: col_classif = col_idx
                     
             if col_grupo is not None and col_pos is not None:
                 df_clean = pd.DataFrame({
                     "Grupo de Cliente": df.iloc[:, col_grupo].astype(str),
+                    "Categoria": df.iloc[:, col_cat].astype(str) if col_cat is not None else "",
                     "Posição": df.iloc[:, col_pos],
-                    "Total pts": df.iloc[:, col_pts] if col_pts is not None else ""
+                    "Total pts": df.iloc[:, col_pts] if col_pts is not None else "",
+                    "Classificação": df.iloc[:, col_classif] if col_classif is not None else ""
                 })
                 # Filtra valores inválidos da coluna de grupo
                 df_clean = df_clean[~df_clean["Grupo de Cliente"].isin(["nan", "Grupo de Cliente", "Soma de VENDALITROS"])]
@@ -593,6 +599,36 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     with cc3: st.markdown(box_campanha("Ação 2", camp.get('Camp2', '-') or '-'), unsafe_allow_html=True)
     with cc4: st.markdown(box_campanha("Ação 3", camp.get('Camp3', '-') or '-'), unsafe_allow_html=True)
     with cc5: st.markdown(box_campanha("Ação 4", camp.get('Camp4', '-') or '-'), unsafe_allow_html=True)
+
+    # --- TABELA DE RANKING DA CATEGORIA ---
+    if 'df_campanhas' in locals() and df_campanhas is not None and not df_campanhas.empty and "Categoria" in df_campanhas.columns:
+        cat_atual = categoria_grupo.strip().upper()
+        # Localiza clientes que pertencem à mesma categoria
+        df_ranking = df_campanhas[df_campanhas["Categoria"].astype(str).str.strip().str.upper() == cat_atual].copy()
+        
+        if not df_ranking.empty:
+            st.markdown(f'<div class="sub-title" style="margin-top: 25px; font-size: 1.1rem; color: #f4ab13;">🏆 RANKING GERAL - {cat_atual}</div>', unsafe_allow_html=True)
+            
+            # Converte posição para número e ordena
+            df_ranking["Posição_num"] = pd.to_numeric(df_ranking["Posição"], errors='coerce')
+            df_ranking = df_ranking.sort_values(by="Posição_num", na_position="last").drop(columns=["Posição_num"])
+            
+            # Formata Posição e Pontos para tirar .0
+            def limpa_num(x):
+                try: return str(int(float(x)))
+                except: return str(x)
+            
+            df_ranking["Posição"] = df_ranking["Posição"].apply(limpa_num)
+            df_ranking["Total pts"] = df_ranking["Total pts"].apply(limpa_num)
+            
+            # Limpa NaNs para tela
+            df_ranking = df_ranking.fillna("-").replace("nan", "-")
+            
+            st.dataframe(
+                df_ranking[["Posição", "Grupo de Cliente", "Total pts", "Classificação"]],
+                use_container_width=True,
+                hide_index=True
+            )
 
     # ==========================================
     # 6. FINANCEIRO (TÍTULO DINÂMICO E TABELA LIMPA)
