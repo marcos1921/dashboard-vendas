@@ -197,12 +197,13 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     st.markdown('<div class="sub-title">INTELIGÊNCIA COMERCIAL EM CAMPO</div>', unsafe_allow_html=True)
 
     # Tenta usar as bases do servidor (dados_atuais/). Se não existirem, pega qualquer XLSX e CSV na raiz.
-    excel_local = [f for f in os.listdir('.') if f.endswith(('.xlsx', '.xls')) and f != 'app.py' and 'campanhas' not in f.lower()]
+    excel_local = [f for f in os.listdir('.') if f.endswith(('.xlsx', '.xls')) and f != 'app.py' and 'campanha' not in f.lower() and 'apuracao' not in f.lower() and 'apuração' not in f.lower()]
     csv_local = [f for f in os.listdir('.') if f.endswith('.csv')]
+    campanhas_local = [f for f in os.listdir('.') if f.endswith(('.xlsx', '.xls')) and ('campanha' in f.lower() or 'apuracao' in f.lower() or 'apuração' in f.lower())]
     
     path_vendas = ARQ_VENDAS_SERVIDOR if os.path.exists(ARQ_VENDAS_SERVIDOR) else (excel_local[0] if excel_local else None)
     path_receber = ARQ_RECEBER_SERVIDOR if os.path.exists(ARQ_RECEBER_SERVIDOR) else (csv_local[0] if csv_local else None)
-    path_campanhas = ARQ_CAMPANHAS_SERVIDOR if os.path.exists(ARQ_CAMPANHAS_SERVIDOR) else None
+    path_campanhas = ARQ_CAMPANHAS_SERVIDOR if os.path.exists(ARQ_CAMPANHAS_SERVIDOR) else (campanhas_local[0] if campanhas_local else None)
 
     if not path_vendas or not path_receber:
         st.warning("⏳ **Atenção:** Arquivos não encontrados. Vá à **Área do Administrador** e faça o upload das duas bases.")
@@ -563,14 +564,11 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
                 
                 ranking_text = f"<br><span style='color:#e51e25; font-size:1.1rem; font-weight:900;'>🏆 {pos_str}º LUGAR ({pts_str} pts)</span>"
                 
-                if "STOCK CAR" in classif:
-                    for k, v in camp.items():
-                        if "STOCK CAR" in str(v).upper():
-                            camp[k] = str(v) + ranking_text
-                elif "VAMOS JUNTOS" in classif:
-                    for k, v in camp.items():
-                        if "VAMOS JUNTOS" in str(v).upper():
-                            camp[k] = str(v) + ranking_text
+                # Injeta a mesma posição global em todas as ações de campanha do cliente (ex: Stock Car e Vamos Juntos)
+                for k, v in camp.items():
+                    texto_campanha = str(v).upper()
+                    if "STOCK CAR" in texto_campanha or "VAMOS JUNTOS" in texto_campanha:
+                        camp[k] = str(v) + ranking_text
 
     cc1, cc2, cc3, cc4, cc5 = st.columns(5)
     def box_campanha(titulo, valor):
