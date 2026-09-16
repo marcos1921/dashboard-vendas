@@ -650,15 +650,16 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         df_ranking_local["Total pts"] = df_ranking_local["Total pts"].apply(limpa_num)
         df_ranking_local = df_ranking_local.fillna("-").replace("nan", "-")
 
-        def check_selecionado(nome):
-            if str(nome).strip().upper() == str(grupo_escolhido).strip().upper():
-                return "➡️ AQUI"
-            return ""
+        def highlight_client(row):
+            if str(row["Grupo de Cliente"]).strip().upper() == str(grupo_escolhido).strip().upper():
+                # Cor sólida bonita (amarelo) com texto preto que funciona bem em qualquer fundo
+                return ['background-color: #f4ab13; color: #000000; font-weight: bold'] * len(row)
+            return [''] * len(row)
             
-        df_ranking_local.insert(0, "Seu Cliente", df_ranking_local["Grupo de Cliente"].apply(check_selecionado))
+        df_view = df_ranking_local[["Posição", "Grupo de Cliente", "Total pts", "Classificação"]]
         
         st.dataframe(
-            df_ranking_local[["Seu Cliente", "Posição", "Grupo de Cliente", "Total pts", "Classificação"]],
+            df_view.style.apply(highlight_client, axis=1),
             use_container_width=True,
             hide_index=True
         )
