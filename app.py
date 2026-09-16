@@ -563,30 +563,65 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     camp = CAMPANHAS_MAP.get(categoria_grupo, {}).copy()
     
     # --- DADOS DA PLANILHA DE CAMPANHA (Se existir) ---
-    if 'df_campanhas' in locals() and df_campanhas is not None and "Grupo de Cliente" in df_campanhas.columns:
-        cliente_camp = df_campanhas[df_campanhas["Grupo de Cliente"].astype(str).str.strip().str.upper() == str(grupo_escolhido).strip().upper()]
-        if not cliente_camp.empty:
-            linha_c = cliente_camp.iloc[0]
-            pos = str(linha_c.get("Posição", "")).strip()
-            pts = str(linha_c.get("Total pts", "")).strip()
-            classif = str(linha_c.get("Classifica", "")).strip().upper()
+    df_ranking_local = pd.DataFrame()
+    if 'df_campanhas' in locals() and df_campanhas is not None and not df_campanhas.empty and "Categoria" in df_campanhas.columns:
+        cat_atual = categoria_grupo.strip().upper()
+        
+        # 1. Filtra a categoria inteira
+        df_ranking_local = df_campanhas[df_campanhas["Categoria"].astype(str).str.strip().str.upper() == cat_atual].copy()
+        
+        if not df_ranking_local.empty:
+            # 2. Descobre quantas vagas existem para essa categoria nas regras base
+            import re
+            vagas_vj = 0
+            vagas_sc = 0
+            for k, v in CAMPANHAS_MAP.get(categoria_grupo, {}).items():
+                v_upper = str(v).upper()
+                match = re.search(r"(\d+)\s*VAGA", v_upper)
+                if match:
+                    vagas = int(match.group(1))
+                    if "VAMOS JUNTOS" in v_upper: vagas_vj += vagas
+                    elif "STOCK CAR" in v_upper: vagas_sc += vagas
+
+            # 3. Ordena os clientes da categoria
+            df_ranking_local["Posição_num"] = pd.to_numeric(df_ranking_local["Posição"], errors='coerce')
+            df_ranking_local = df_ranking_local.sort_values(by="Posição_num", na_position="last")
             
-            # Se tiver uma posição válida que não seja 'Não Aplica'
-            if pos and pos != "nan" and pos != "-" and "NÃO" not in pos.upper():
-                # Tenta converter pos para int para tirar '.0' se for float
-                try: pos_str = str(int(float(pos))) 
-                except: pos_str = pos
+            # 4. Distribui as classificações automaticamente (ignorando o que veio na planilha)
+            novas_classificacoes = []
+            for idx, row in df_ranking_local.iterrows():
+                pos_num = row["Posição_num"]
+                if pd.isna(pos_num):
+                    novas_classificacoes.append("-")
+                elif pos_num <= vagas_vj:
+                    novas_classificacoes.append("🏆 Classifica Vamos Juntos")
+                elif pos_num <= (vagas_vj + vagas_sc):
+                    novas_classificacoes.append("🏎️ Classifica Stock Car")
+                else:
+                    novas_classificacoes.append("-")
+            
+            df_ranking_local["Classificação"] = novas_classificacoes
+            
+            # 5. Localiza o cliente atual dentro do ranking recalculado
+            cliente_camp = df_ranking_local[df_ranking_local["Grupo de Cliente"].astype(str).str.strip().str.upper() == str(grupo_escolhido).strip().upper()]
+            if not cliente_camp.empty:
+                linha_c = cliente_camp.iloc[0]
+                pos = str(linha_c.get("Posição", "")).strip()
+                pts = str(linha_c.get("Total pts", "")).strip()
+                classif = str(linha_c.get("Classificação", "")).strip().upper()
                 
-                try: pts_str = str(int(float(pts)))
-                except: pts_str = pts
-                
-                ranking_text = f"<br><span style='color:#e51e25; font-size:1.1rem; font-weight:900;'>🏆 {pos_str}º LUGAR ({pts_str} pts)</span>"
-                
-                # Injeta a mesma posição global em todas as ações de campanha do cliente (ex: Stock Car e Vamos Juntos)
-                for k, v in camp.items():
-                    texto_campanha = str(v).upper()
-                    if "STOCK CAR" in texto_campanha or "VAMOS JUNTOS" in texto_campanha:
-                        camp[k] = str(v) + ranking_text
+                if pos and pos != "nan" and pos != "-" and "NÃO" not in pos.upper():
+                    try: pos_str = str(int(float(pos))) 
+                    except: pos_str = pos
+                    try: pts_str = str(int(float(pts)))
+                    except: pts_str = pts
+                    
+                    ranking_text = f"<br><span style='color:#e51e25; font-size:1.1rem; font-weight:900;'>🏆 {pos_str}º LUGAR ({pts_str} pts)</span>"
+                    
+                    for k, v in camp.items():
+                        texto_campanha = str(v).upper()
+                        if "STOCK CAR" in texto_campanha or "VAMOS JUNTOS" in texto_campanha:
+                            camp[k] = str(v) + ranking_text
 
     cc1, cc2, cc3, cc4, cc5 = st.columns(5)
     def box_campanha(titulo, valor):
@@ -601,34 +636,25 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     with cc5: st.markdown(box_campanha("Ação 4", camp.get('Camp4', '-') or '-'), unsafe_allow_html=True)
 
     # --- TABELA DE RANKING DA CATEGORIA ---
-    if 'df_campanhas' in locals() and df_campanhas is not None and not df_campanhas.empty and "Categoria" in df_campanhas.columns:
-        cat_atual = categoria_grupo.strip().upper()
-        # Localiza clientes que pertencem à mesma categoria
-        df_ranking = df_campanhas[df_campanhas["Categoria"].astype(str).str.strip().str.upper() == cat_atual].copy()
+    if not df_ranking_local.empty:
+        st.markdown(f'<div class="sub-title" style="margin-top: 25px; font-size: 1.1rem; color: #f4ab13;">🏆 RANKING GERAL - {cat_atual}</div>', unsafe_allow_html=True)
         
-        if not df_ranking.empty:
-            st.markdown(f'<div class="sub-title" style="margin-top: 25px; font-size: 1.1rem; color: #f4ab13;">🏆 RANKING GERAL - {cat_atual}</div>', unsafe_allow_html=True)
-            
-            # Converte posição para número e ordena
-            df_ranking["Posição_num"] = pd.to_numeric(df_ranking["Posição"], errors='coerce')
-            df_ranking = df_ranking.sort_values(by="Posição_num", na_position="last").drop(columns=["Posição_num"])
-            
-            # Formata Posição e Pontos para tirar .0
-            def limpa_num(x):
-                try: return str(int(float(x)))
-                except: return str(x)
-            
-            df_ranking["Posição"] = df_ranking["Posição"].apply(limpa_num)
-            df_ranking["Total pts"] = df_ranking["Total pts"].apply(limpa_num)
-            
-            # Limpa NaNs para tela
-            df_ranking = df_ranking.fillna("-").replace("nan", "-")
-            
-            st.dataframe(
-                df_ranking[["Posição", "Grupo de Cliente", "Total pts", "Classificação"]],
-                use_container_width=True,
-                hide_index=True
-            )
+        # Remove a coluna temporária usada pra ordenação
+        df_ranking_local = df_ranking_local.drop(columns=["Posição_num"])
+        
+        def limpa_num(x):
+            try: return str(int(float(x)))
+            except: return str(x)
+        
+        df_ranking_local["Posição"] = df_ranking_local["Posição"].apply(limpa_num)
+        df_ranking_local["Total pts"] = df_ranking_local["Total pts"].apply(limpa_num)
+        df_ranking_local = df_ranking_local.fillna("-").replace("nan", "-")
+        
+        st.dataframe(
+            df_ranking_local[["Posição", "Grupo de Cliente", "Total pts", "Classificação"]],
+            use_container_width=True,
+            hide_index=True
+        )
 
     # ==========================================
     # 6. FINANCEIRO (TÍTULO DINÂMICO E TABELA LIMPA)
