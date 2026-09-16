@@ -541,32 +541,37 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     # ==========================================
     st.markdown('<div class="header-yellow">BENEFÍCIOS E CAMPANHAS (OFERTE NO BALCÃO)</div>', unsafe_allow_html=True)
     
+    camp = CAMPANHAS_MAP.get(categoria_grupo, {}).copy()
+    
     # --- DADOS DA PLANILHA DE CAMPANHA (Se existir) ---
-    if 'df_campanhas' in locals() and df_campanhas is not None:
-        codigos_tmp = pd.to_numeric(df_grupo["CÓDIGO CLIENTE"], errors="coerce").dropna().astype(int).astype(str).str.zfill(7).unique()
-        cod_busca = str(codigos_tmp[0]) if len(codigos_tmp) > 0 else ""
-        cliente_camp = df_campanhas[df_campanhas["CODIGO_BUSCA"] == cod_busca]
+    if 'df_campanhas' in locals() and df_campanhas is not None and "Grupo de Cliente" in df_campanhas.columns:
+        cliente_camp = df_campanhas[df_campanhas["Grupo de Cliente"].astype(str).str.strip().str.upper() == str(grupo_escolhido).strip().upper()]
         if not cliente_camp.empty:
             linha_c = cliente_camp.iloc[0]
-            pos = linha_c.get("Posição", "-")
-            pts = linha_c.get("Total pts", "-")
-            classif = linha_c.get("Classifica", "-")
+            pos = str(linha_c.get("Posição", "")).strip()
+            pts = str(linha_c.get("Total pts", "")).strip()
+            classif = str(linha_c.get("Classifica", "")).strip().upper()
             
-            st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #f4ab13 0%, #ff8c00 100%); padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; color: #000; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                <div>
-                    <h4 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: #000;">🏆 RESULTADO DA APURAÇÃO (STOCK CAR / VAMOS JUNTOS)</h4>
-                    <p style="margin: 5px 0 0 0; font-size: 0.95rem; font-weight: 600; opacity: 0.9;">Classificação atual do cliente na campanha</p>
-                </div>
-                <div style="text-align: right;">
-                    <div style="font-size: 2rem; font-weight: 900; line-height: 1;">{pos}º LUGAR</div>
-                    <div style="font-size: 1rem; font-weight: 700; opacity: 0.8;">{pts} PTS | {classif}</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            # Se tiver uma posição válida que não seja 'Não Aplica'
+            if pos and pos != "nan" and pos != "-" and "NÃO" not in pos.upper():
+                # Tenta converter pos para int para tirar '.0' se for float
+                try: pos_str = str(int(float(pos))) 
+                except: pos_str = pos
+                
+                try: pts_str = str(int(float(pts)))
+                except: pts_str = pts
+                
+                ranking_text = f"<br><span style='color:#e51e25; font-size:1.1rem; font-weight:900;'>🏆 {pos_str}º LUGAR ({pts_str} pts)</span>"
+                
+                if "STOCK CAR" in classif:
+                    for k, v in camp.items():
+                        if "STOCK CAR" in str(v).upper():
+                            camp[k] = str(v) + ranking_text
+                elif "VAMOS JUNTOS" in classif:
+                    for k, v in camp.items():
+                        if "VAMOS JUNTOS" in str(v).upper():
+                            camp[k] = str(v) + ranking_text
 
-    camp = CAMPANHAS_MAP.get(categoria_grupo, {})
-    
     cc1, cc2, cc3, cc4, cc5 = st.columns(5)
     def box_campanha(titulo, valor):
         return f"""<div style="background-color: var(--secondary-background-color); padding: 15px; border-radius: 8px; border-top: 4px solid #e51e25; min-height: 110px;">
