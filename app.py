@@ -649,16 +649,16 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         df_ranking_local["Posição"] = df_ranking_local["Posição"].apply(limpa_num)
         df_ranking_local["Total pts"] = df_ranking_local["Total pts"].apply(limpa_num)
         df_ranking_local = df_ranking_local.fillna("-").replace("nan", "-")
-        
-        def highlight_client(row):
-            if str(row["Grupo de Cliente"]).strip().upper() == str(grupo_escolhido).strip().upper():
-                return ['background-color: rgba(244, 171, 19, 0.4); color: white; font-weight: bold'] * len(row)
-            return [''] * len(row)
+
+        def marca_cliente(nome):
+            if str(nome).strip().upper() == str(grupo_escolhido).strip().upper():
+                return f"⭐ {nome} ⭐"
+            return nome
             
-        df_view = df_ranking_local[["Posição", "Grupo de Cliente", "Total pts", "Classificação"]]
+        df_ranking_local["Grupo de Cliente"] = df_ranking_local["Grupo de Cliente"].apply(marca_cliente)
         
         st.dataframe(
-            df_view.style.apply(highlight_client, axis=1),
+            df_ranking_local[["Posição", "Grupo de Cliente", "Total pts", "Classificação"]],
             use_container_width=True,
             hide_index=True
         )
