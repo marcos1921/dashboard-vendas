@@ -28,9 +28,6 @@ st.markdown("""
     .cat-destaque { background-color: var(--secondary-background-color); color: #f4ab13; padding: 6px 18px; border-radius: 20px; font-size: 1.1rem; font-weight: 800; display: inline-block; margin-bottom: 10px;}
     .cliente-titulo { color: var(--text-color); font-size: 2.2rem; font-weight: 900; margin-top: 0px; margin-bottom: 20px; text-transform: uppercase; border-bottom: 3px solid #e51e25; padding-bottom: 8px;}
     
-    /* Inverte as cores da tabela para contrastar com o tema atual (Light/Dark) */
-    [data-testid="stDataFrame"] { filter: invert(1) hue-rotate(180deg); }
-
     /* REGRAS DE MOBILE: Ajusta os tamanhos para telas menores que 768px (Celulares) */
     @media (max-width: 768px) {
         .main-title { font-size: 1.8rem; }
