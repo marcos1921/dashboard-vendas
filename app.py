@@ -144,10 +144,7 @@ if not st.session_state["autenticado"]:
 
 # --- MENU LATERAL (SIDEBAR) ---
 st.sidebar.image("logo.png", use_container_width=True)
-st.sidebar.divider()
-
-st.sidebar.title("Navegação")
-aba_selecionada = st.sidebar.radio("Ir para:", ["🔍 Consulta de Clientes", "⚙️ Área do Administrador"])
+aba_selecionada = st.sidebar.radio("Navegação", ["🔍 Consulta de Clientes", "⚙️ Área do Administrador"])
 
 PASTA_DADOS = "dados_atuais"
 if not os.path.exists(PASTA_DADOS): os.makedirs(PASTA_DADOS)
@@ -354,10 +351,8 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     # HOJE travado na data real do calendário para análise financeira correta:
     HOJE = datetime.now()
     # --- FILTROS ---
-    st.sidebar.markdown("---")
-    st.sidebar.header("🔍 Buscar Cliente")
-
-    termo_busca = st.sidebar.text_input("Nome ou código do cliente", placeholder="Ex.: 141428 ou Express").strip()
+    # Removido os divisores e cabeçalhos grandes para economizar espaço
+    termo_busca = st.sidebar.text_input("🔍 Nome ou código do cliente", placeholder="Ex.: 141428 ou Express").strip()
     cidades = sorted(df_vendas["CIDADE"].dropna().astype(str).str.strip().unique())
     cidade_sel = st.sidebar.selectbox("Cidade (opcional)", ["Todas"] + cidades)
 
@@ -385,7 +380,6 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     grupo_escolhido = st.sidebar.selectbox("Selecione a rede ou cliente", grupos_disponiveis)
 
     # Mostra a data e hora do ÚLTIMO UPLOAD da base no menu lateral
-    st.sidebar.markdown("---")
     if path_vendas and os.path.exists(path_vendas):
         # Lê a data e hora no servidor
         timestamp_upload = os.path.getmtime(path_vendas)
