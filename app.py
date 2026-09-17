@@ -42,9 +42,9 @@ st.markdown("""
 # MATRIZ DE CAMPANHAS OFICIAL
 CAMPANHAS_MAP = {
     "1. INFINITO / TNT EXCLUSIVE": {"Rebates": "TNT Exclusive", "Camp1": "Conexão Suvinil", "Camp2": "", "Camp3": "", "Camp4": ""},
-    "1.1 INFINITO": {"Rebates": "", "Camp1": "Conexão Suvinil", "Camp2": "Vamos Juntos - 1 vaga", "Camp3": "", "Camp4": "Big Fish"},
+    "1.1 INFINITO": {"Rebates": "", "Camp1": "Conexão Suvinil", "Camp2": "Vamos Juntos - 1 vaga", "Camp3": "Stock Car - 1 vaga", "Camp4": "Big Fish"},
     "2. DIAMANTE": {"Rebates": "", "Camp1": "Conexão Suvinil", "Camp2": "Vamos juntos - 2 vaga", "Camp3": "Stock Car - 1 vaga", "Camp4": "Big Fish"},
-    "3. PLATINUM": {"Rebates": "", "Camp1": "", "Camp2": "Vamos Juntos - 1 vaga", "Camp3": "Stock Car - 2 vaga", "Camp4": "Big Fish"},
+    "3. PLATINUM": {"Rebates": "", "Camp1": "", "Camp2": "Vamos Juntos - 1 vaga", "Camp3": "Stock Car - 1 vaga", "Camp4": "Big Fish"},
     "4. SAFIRA": {"Rebates": "", "Camp1": "", "Camp2": "Vamos Juntos - 1 vaga", "Camp3": "Stock Car - 1 vaga", "Camp4": "Compre e Ganhe"},
     "5. ESMERALDA": {"Rebates": "", "Camp1": "", "Camp2": "Vamos Juntos - 1 vaga", "Camp3": "Stock Car - 1 vaga", "Camp4": "Compre e Ganhe"},
     "6. QUARTZO": {"Rebates": "", "Camp1": "", "Camp2": "Vamos Juntos - 1 vaga", "Camp3": "", "Camp4": "Compre e Ganhe"},
@@ -150,6 +150,7 @@ PASTA_DADOS = "dados_atuais"
 if not os.path.exists(PASTA_DADOS): os.makedirs(PASTA_DADOS)
 ARQ_VENDAS_SERVIDOR = os.path.join(PASTA_DADOS, "vendas.xlsx")
 ARQ_RECEBER_SERVIDOR = os.path.join(PASTA_DADOS, "receber.csv")
+ARQ_CAMPANHAS_SERVIDOR = os.path.join(PASTA_DADOS, "campanhas.xlsx")
 
 # ==========================================
 # ÁREA DO ADMINISTRADOR
@@ -165,14 +166,18 @@ if aba_selecionada == "⚙️ Área do Administrador":
     elif senha == senha_admin:
         up_vendas = st.file_uploader("1. Substituir Base de Vendas (Excel)", type=["xlsx"])
         up_receber = st.file_uploader("2. Substituir Base de Receber (CSV)", type=["csv"])
+        up_campanhas = st.file_uploader("3. Substituir Base de Campanhas (Excel)", type=["xlsx", "xls"])
         if st.button("💾 Salvar Novas Bases"):
-            if up_vendas is not None or up_receber is not None:
+            if up_vendas is not None or up_receber is not None or up_campanhas is not None:
                 if up_vendas is not None:
                     with open(ARQ_VENDAS_SERVIDOR, "wb") as arquivo:
                         arquivo.write(up_vendas.getbuffer())
                 if up_receber is not None:
                     with open(ARQ_RECEBER_SERVIDOR, "wb") as arquivo:
                         arquivo.write(up_receber.getbuffer())
+                if up_campanhas is not None:
+                    with open(ARQ_CAMPANHAS_SERVIDOR, "wb") as arquivo:
+                        arquivo.write(up_campanhas.getbuffer())
                 st.cache_data.clear()
                 st.success("✅ Bases atualizadas com sucesso! Recarregando...")
                 time.sleep(1.5)
@@ -195,11 +200,13 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     st.markdown('<div class="sub-title">INTELIGÊNCIA COMERCIAL EM CAMPO</div>', unsafe_allow_html=True)
 
     # Tenta usar as bases do servidor (dados_atuais/). Se não existirem, pega qualquer XLSX e CSV na raiz.
-    excel_local = [f for f in os.listdir('.') if f.endswith(('.xlsx', '.xls')) and f != 'app.py']
+    excel_local = [f for f in os.listdir('.') if f.endswith(('.xlsx', '.xls')) and f != 'app.py' and 'campanha' not in f.lower() and 'apuracao' not in f.lower() and 'apuração' not in f.lower()]
     csv_local = [f for f in os.listdir('.') if f.endswith('.csv')]
+    campanhas_local = [f for f in os.listdir('.') if f.endswith(('.xlsx', '.xls')) and ('campanha' in f.lower() or 'apuracao' in f.lower() or 'apuração' in f.lower())]
     
     path_vendas = ARQ_VENDAS_SERVIDOR if os.path.exists(ARQ_VENDAS_SERVIDOR) else (excel_local[0] if excel_local else None)
     path_receber = ARQ_RECEBER_SERVIDOR if os.path.exists(ARQ_RECEBER_SERVIDOR) else (csv_local[0] if csv_local else None)
+    path_campanhas = ARQ_CAMPANHAS_SERVIDOR if os.path.exists(ARQ_CAMPANHAS_SERVIDOR) else (campanhas_local[0] if campanhas_local else None)
 
     if not path_vendas or not path_receber:
         st.warning("⏳ **Atenção:** Arquivos não encontrados. Vá à **Área do Administrador** e faça o upload das duas bases.")
@@ -280,10 +287,56 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
             
         return df_v, df_r
 
+    @st.cache_data(show_spinner="Processando base de campanhas...")
+    def carregar_campanhas(camp_file, mod_camp):
+        if not camp_file or not os.path.exists(camp_file):
+            return None
+        try:
+            # Lê sem cabeçalho para não quebrar com células mescladas do Excel
+            df = pd.read_excel(camp_file, sheet_name=0, header=None)
+            
+            col_grupo = None
+            col_cat = None
+            col_pos = None
+            col_pts = None
+            col_classif = None
+            
+            # Varre as primeiras 5 linhas e todas as colunas para encontrar as posições exatas
+            for row_idx in range(min(5, len(df))):
+                for col_idx in range(len(df.columns)):
+                    val = str(df.iloc[row_idx, col_idx]).strip().lower()
+                    if val == "grupo de cliente": col_grupo = col_idx
+                    elif "categor" in val: col_cat = col_idx
+                    elif val in ["posição", "posicao"]: col_pos = col_idx
+                    elif val == "total": col_pts = col_idx
+                    elif "classifica" in val: col_classif = col_idx
+                    
+            if col_grupo is not None and col_pos is not None:
+                df_clean = pd.DataFrame({
+                    "Grupo de Cliente": df.iloc[:, col_grupo].astype(str),
+                    "Categoria": df.iloc[:, col_cat].astype(str) if col_cat is not None else "",
+                    "Posição": df.iloc[:, col_pos],
+                    "Total pts": df.iloc[:, col_pts] if col_pts is not None else "",
+                    "Classificação": df.iloc[:, col_classif] if col_classif is not None else ""
+                })
+                # Filtra valores inválidos da coluna de grupo
+                df_clean = df_clean[~df_clean["Grupo de Cliente"].isin(["nan", "Grupo de Cliente", "Soma de VENDALITROS"])]
+                return df_clean
+            return None
+        except Exception as e:
+            print("Erro ao ler campanhas:", e)
+            return None
+
     try:
         mod_v = os.path.getmtime(path_vendas)
         mod_r = os.path.getmtime(path_receber)
         df_vendas, df_receber = carregar_dados_blindado(path_vendas, path_receber, mod_v, mod_r)
+        
+        df_campanhas = None
+        if path_campanhas:
+            mod_c = os.path.getmtime(path_campanhas)
+            df_campanhas = carregar_campanhas(path_campanhas, mod_c)
+            
     except (ValueError, KeyError, Exception) as erro:
         print("ERROR IN CARREGAR_DADOS:", erro)
         st.error(f"Não foi possível carregar as bases: {erro}")
@@ -509,8 +562,70 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     # 5. CAMPANHAS A OFERTAR
     # ==========================================
     st.markdown('<div class="header-yellow">BENEFÍCIOS E CAMPANHAS (OFERTE NO BALCÃO)</div>', unsafe_allow_html=True)
-    camp = CAMPANHAS_MAP.get(categoria_grupo, {})
     
+    camp = CAMPANHAS_MAP.get(categoria_grupo, {}).copy()
+    
+    # --- DADOS DA PLANILHA DE CAMPANHA (Se existir) ---
+    df_ranking_local = pd.DataFrame()
+    if 'df_campanhas' in locals() and df_campanhas is not None and not df_campanhas.empty and "Categoria" in df_campanhas.columns:
+        cat_atual = categoria_grupo.strip().upper()
+        
+        # 1. Filtra a categoria inteira
+        df_ranking_local = df_campanhas[df_campanhas["Categoria"].astype(str).str.strip().str.upper() == cat_atual].copy()
+        
+        if not df_ranking_local.empty:
+            # 2. Descobre quantas vagas existem para essa categoria nas regras base
+            import re
+            vagas_vj = 0
+            vagas_sc = 0
+            for k, v in CAMPANHAS_MAP.get(categoria_grupo, {}).items():
+                v_upper = str(v).upper()
+                match = re.search(r"(\d+)\s*VAGA", v_upper)
+                if match:
+                    vagas = int(match.group(1))
+                    if "VAMOS JUNTOS" in v_upper: vagas_vj += vagas
+                    elif "STOCK CAR" in v_upper: vagas_sc += vagas
+
+            # 3. Ordena os clientes da categoria
+            df_ranking_local["Posição_num"] = pd.to_numeric(df_ranking_local["Posição"], errors='coerce')
+            df_ranking_local = df_ranking_local.sort_values(by="Posição_num", na_position="last")
+            
+            # 4. Distribui as classificações automaticamente (ignorando o que veio na planilha)
+            novas_classificacoes = []
+            for idx, row in df_ranking_local.iterrows():
+                pos_num = row["Posição_num"]
+                if pd.isna(pos_num):
+                    novas_classificacoes.append("-")
+                elif pos_num <= vagas_vj:
+                    novas_classificacoes.append("🏆 Classifica Vamos Juntos")
+                elif pos_num <= (vagas_vj + vagas_sc):
+                    novas_classificacoes.append("🏎️ Classifica Stock Car")
+                else:
+                    novas_classificacoes.append("-")
+            
+            df_ranking_local["Classificação"] = novas_classificacoes
+            
+            # 5. Localiza o cliente atual dentro do ranking recalculado
+            cliente_camp = df_ranking_local[df_ranking_local["Grupo de Cliente"].astype(str).str.strip().str.upper() == str(grupo_escolhido).strip().upper()]
+            if not cliente_camp.empty:
+                linha_c = cliente_camp.iloc[0]
+                pos = str(linha_c.get("Posição", "")).strip()
+                pts = str(linha_c.get("Total pts", "")).strip()
+                classif = str(linha_c.get("Classificação", "")).strip().upper()
+                
+                if pos and pos != "nan" and pos != "-" and "NÃO" not in pos.upper():
+                    try: pos_str = str(int(float(pos))) 
+                    except: pos_str = pos
+                    try: pts_str = str(int(float(pts)))
+                    except: pts_str = pts
+                    
+                    ranking_text = f"<br><span style='color:#e51e25; font-size:1.1rem; font-weight:900;'>🏆 {pos_str}º LUGAR ({pts_str} pts)</span>"
+                    
+                    for k, v in camp.items():
+                        texto_campanha = str(v).upper()
+                        if "STOCK CAR" in texto_campanha or "VAMOS JUNTOS" in texto_campanha:
+                            camp[k] = str(v) + ranking_text
+
     cc1, cc2, cc3, cc4, cc5 = st.columns(5)
     def box_campanha(titulo, valor):
         return f"""<div style="background-color: var(--secondary-background-color); padding: 15px; border-radius: 8px; border-top: 4px solid #e51e25; min-height: 110px;">
@@ -522,6 +637,34 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     with cc3: st.markdown(box_campanha("Ação 2", camp.get('Camp2', '-') or '-'), unsafe_allow_html=True)
     with cc4: st.markdown(box_campanha("Ação 3", camp.get('Camp3', '-') or '-'), unsafe_allow_html=True)
     with cc5: st.markdown(box_campanha("Ação 4", camp.get('Camp4', '-') or '-'), unsafe_allow_html=True)
+
+    # --- TABELA DE RANKING DA CATEGORIA ---
+    if not df_ranking_local.empty:
+        st.markdown(f'<div class="sub-title" style="margin-top: 25px; font-size: 1.1rem; color: #f4ab13;">🏆 RANKING GERAL - {cat_atual}</div>', unsafe_allow_html=True)
+        
+        # Remove a coluna temporária usada pra ordenação
+        df_ranking_local = df_ranking_local.drop(columns=["Posição_num"])
+        
+        def limpa_num(x):
+            try: return str(int(float(x)))
+            except: return str(x)
+        
+        df_ranking_local["Posição"] = df_ranking_local["Posição"].apply(limpa_num)
+        df_ranking_local["Total pts"] = df_ranking_local["Total pts"].apply(limpa_num)
+        df_ranking_local = df_ranking_local.fillna("-").replace("nan", "-")
+
+        def highlight_client(row):
+            if str(row["Grupo de Cliente"]).strip().upper() == str(grupo_escolhido).strip().upper():
+                return ['background-color: #f4ab13; color: #000000; font-weight: bold'] * len(row)
+            return [''] * len(row)
+            
+        df_view = df_ranking_local[["Posição", "Grupo de Cliente", "Total pts", "Classificação"]]
+        
+        st.dataframe(
+            df_view.style.apply(highlight_client, axis=1),
+            use_container_width=True,
+            hide_index=True
+        )
 
     # ==========================================
     # 6. FINANCEIRO (TÍTULO DINÂMICO E TABELA LIMPA)
