@@ -400,9 +400,29 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     df_anterior = df_grupo[(df_grupo["ANO"] == ANO_ANTERIOR) & (df_grupo["DATA_DT"].dt.dayofyear <= dia_ano_max)]
 
     info_grupo = df_grupo.iloc[0]
-    categoria_grupo = str(info_grupo.get("CATEGORIA", "Sem Categoria")).strip()
+    cat_dashboard = str(info_grupo.get("CATEGORIA", "Sem Categoria")).strip()
+    
+    # --- IDENTIFICAÇÃO DA CATEGORIA CORRETA ---
+    # A regra é: A categoria que vale é a da Planilha de Campanhas.
+    chave_final = cat_dashboard # Default
+    cat_atual = cat_dashboard
+    
+    if 'df_campanhas' in locals() and df_campanhas is not None and not df_campanhas.empty and "Categoria" in df_campanhas.columns:
+        cliente_na_campanha = df_campanhas[df_campanhas["Grupo de Cliente"].astype(str).str.strip().str.upper() == str(grupo_escolhido).strip().upper()]
+        if not cliente_na_campanha.empty:
+            cat_atual = str(cliente_na_campanha.iloc[0]["Categoria"]).strip().upper()
+            import re
+            # Procura a chave correspondente no CAMPANHAS_MAP (ex: "INFINITO" -> "1.1 INFINITO")
+            for k in CAMPANHAS_MAP.keys():
+                k_clean = re.sub(r'^\d+(\.\d+)?\s*', '', k).strip().upper()
+                if cat_atual == k_clean or cat_atual in k.upper():
+                    # Evita que "INFINITO" puro puxe "INFINITO / TNT EXCLUSIVE"
+                    if cat_atual == "INFINITO" and "TNT" in k.upper():
+                        continue
+                    chave_final = k
+                    break
 
-    st.markdown(f'<div class="cat-destaque">🏆 Categoria: {escape(categoria_grupo)}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="cat-destaque">🏆 Categoria: {escape(cat_atual)}</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="cliente-titulo">{escape(grupo_escolhido)}</div>', unsafe_allow_html=True)
 
     # ==========================================
@@ -560,27 +580,6 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     # ==========================================
     st.markdown('<div class="header-yellow">BENEFÍCIOS E CAMPANHAS (OFERTE NO BALCÃO)</div>', unsafe_allow_html=True)
     
-    # --- IDENTIFICAÇÃO DA CATEGORIA CORRETA ---
-    # A regra é: A categoria que vale é a da Planilha de Campanhas.
-    cat_dashboard = categoria_grupo.strip().upper()
-    chave_final = categoria_grupo # Default
-    cat_atual = cat_dashboard
-    
-    if 'df_campanhas' in locals() and df_campanhas is not None and not df_campanhas.empty and "Categoria" in df_campanhas.columns:
-        cliente_na_campanha = df_campanhas[df_campanhas["Grupo de Cliente"].astype(str).str.strip().str.upper() == str(grupo_escolhido).strip().upper()]
-        if not cliente_na_campanha.empty:
-            cat_atual = str(cliente_na_campanha.iloc[0]["Categoria"]).strip().upper()
-            import re
-            # Procura a chave correspondente no CAMPANHAS_MAP (ex: "INFINITO" -> "1.1 INFINITO")
-            for k in CAMPANHAS_MAP.keys():
-                k_clean = re.sub(r'^\d+(\.\d+)?\s*', '', k).strip().upper()
-                if cat_atual == k_clean or cat_atual in k.upper():
-                    # Evita que "INFINITO" puro puxe "INFINITO / TNT EXCLUSIVE"
-                    if cat_atual == "INFINITO" and "TNT" in k.upper():
-                        continue
-                    chave_final = k
-                    break
-
     camp = CAMPANHAS_MAP.get(chave_final, {}).copy()
     
     # --- DADOS DA PLANILHA DE CAMPANHA (Se existir) ---
