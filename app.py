@@ -560,13 +560,32 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     # ==========================================
     st.markdown('<div class="header-yellow">BENEFÍCIOS E CAMPANHAS (OFERTE NO BALCÃO)</div>', unsafe_allow_html=True)
     
-    camp = CAMPANHAS_MAP.get(categoria_grupo, {}).copy()
+    # --- IDENTIFICAÇÃO DA CATEGORIA CORRETA ---
+    # A regra é: A categoria que vale é a da Planilha de Campanhas.
+    cat_dashboard = categoria_grupo.strip().upper()
+    chave_final = categoria_grupo # Default
+    cat_atual = cat_dashboard
+    
+    if 'df_campanhas' in locals() and df_campanhas is not None and not df_campanhas.empty and "Categoria" in df_campanhas.columns:
+        cliente_na_campanha = df_campanhas[df_campanhas["Grupo de Cliente"].astype(str).str.strip().str.upper() == str(grupo_escolhido).strip().upper()]
+        if not cliente_na_campanha.empty:
+            cat_atual = str(cliente_na_campanha.iloc[0]["Categoria"]).strip().upper()
+            import re
+            # Procura a chave correspondente no CAMPANHAS_MAP (ex: "INFINITO" -> "1.1 INFINITO")
+            for k in CAMPANHAS_MAP.keys():
+                k_clean = re.sub(r'^\d+(\.\d+)?\s*', '', k).strip().upper()
+                if cat_atual == k_clean or cat_atual in k.upper():
+                    # Evita que "INFINITO" puro puxe "INFINITO / TNT EXCLUSIVE"
+                    if cat_atual == "INFINITO" and "TNT" in k.upper():
+                        continue
+                    chave_final = k
+                    break
+
+    camp = CAMPANHAS_MAP.get(chave_final, {}).copy()
     
     # --- DADOS DA PLANILHA DE CAMPANHA (Se existir) ---
     df_ranking_local = pd.DataFrame()
     if 'df_campanhas' in locals() and df_campanhas is not None and not df_campanhas.empty and "Categoria" in df_campanhas.columns:
-        cat_atual = categoria_grupo.strip().upper()
-        
         # 1. Filtra a categoria inteira
         df_ranking_local = df_campanhas[df_campanhas["Categoria"].astype(str).str.strip().str.upper() == cat_atual].copy()
         
@@ -575,7 +594,7 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
             import re
             vagas_vj = 0
             vagas_sc = 0
-            for k, v in CAMPANHAS_MAP.get(categoria_grupo, {}).items():
+            for k, v in CAMPANHAS_MAP.get(chave_final, {}).items():
                 v_upper = str(v).upper()
                 match = re.search(r"(\d+)\s*VAGA", v_upper)
                 if match:
