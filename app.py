@@ -662,6 +662,9 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
             use_container_width=True,
             hide_index=True
         )
+    else:
+        cats_disp = ", ".join(df_campanhas["Categoria"].astype(str).str.strip().str.upper().unique())
+        st.info(f"O ranking não foi exibido porque a categoria '{cat_atual}' do dashboard não bate com os nomes das categorias escritas na planilha de campanhas. Categorias lidas da planilha: {cats_disp}")
 
     # ==========================================
     # 6. FINANCEIRO (TÍTULO DINÂMICO E TABELA LIMPA)
