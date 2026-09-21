@@ -365,10 +365,22 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     # HOJE travado na data real do calendário para análise financeira correta:
     HOJE = datetime.now()
     # --- FILTROS ---
-    # Removido os divisores e cabeçalhos grandes para economizar espaço
+    import streamlit.components.v1 as components
+    # Injeta um script minúsculo para transformar o text_input num campo de "search" nativo do navegador, 
+    # o que adiciona o botão de "X" automaticamente e fica muito mais profissional.
+    components.html("""
+        <script>
+            const inputs = window.parent.document.querySelectorAll('input[type="text"]');
+            inputs.forEach(input => {
+                input.setAttribute('type', 'search');
+                input.style.outline = 'none';
+            });
+        </script>
+    """, height=0, width=0)
+
     termo_busca = st.sidebar.text_input("🔍 Nome ou código do cliente", placeholder="Ex.: 141428 ou Express").strip()
     cidades = sorted(df_vendas["CIDADE"].dropna().astype(str).str.strip().unique())
-    cidade_sel = st.sidebar.selectbox("Cidade (opcional)", ["Todas"] + cidades)
+    cidade_sel = st.sidebar.selectbox("Cidade (opcional)", cidades, index=None, placeholder="Todas as cidades...")
 
     df_filt = df_vendas
     if termo_busca:
@@ -383,7 +395,7 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
 
         df_filt = df_filt[mascara_busca]
 
-    if cidade_sel != "Todas":
+    if cidade_sel:
         df_filt = df_filt[df_filt["CIDADE"].astype(str).str.strip() == cidade_sel]
 
     grupos_disponiveis = sorted(df_filt["Grupo de Cliente"].dropna().unique())
@@ -391,7 +403,10 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         st.error("Nenhum cliente encontrado com os filtros informados.")
         st.stop()
 
-    grupo_escolhido = st.sidebar.selectbox("Selecione a rede ou cliente", grupos_disponiveis)
+    grupo_escolhido = st.sidebar.selectbox("Selecione a rede ou cliente", grupos_disponiveis, index=None, placeholder="Selecione um cliente...")
+    if not grupo_escolhido:
+        st.info("👈 Selecione um cliente no menu lateral para visualizar o dashboard.")
+        st.stop()
 
     # Mostra a data e hora do ÚLTIMO UPLOAD da base no menu lateral
     if path_vendas and os.path.exists(path_vendas):
