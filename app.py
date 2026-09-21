@@ -408,7 +408,17 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     cat_atual = cat_dashboard
     
     if 'df_campanhas' in locals() and df_campanhas is not None and not df_campanhas.empty and "Categoria" in df_campanhas.columns:
-        cliente_na_campanha = df_campanhas[df_campanhas["Grupo de Cliente"].astype(str).str.strip().str.upper() == str(grupo_escolhido).strip().upper()]
+        nome_busca = str(grupo_escolhido).strip().upper()
+        grupos_camp = df_campanhas["Grupo de Cliente"].astype(str).str.strip().str.upper()
+        
+        # 1. Tenta achar o cliente pelo nome exato
+        cliente_na_campanha = df_campanhas[grupos_camp == nome_busca]
+        
+        # 2. Se falhar, tenta match parcial inteligente (ex: "COMERCIAL TINTAS" contido em "COMERCIAL TINTAS LTDA-ME")
+        if cliente_na_campanha.empty:
+            mascara_parcial = grupos_camp.apply(lambda x: x in nome_busca or nome_busca in x)
+            cliente_na_campanha = df_campanhas[mascara_parcial]
+            
         if not cliente_na_campanha.empty:
             cat_atual = str(cliente_na_campanha.iloc[0]["Categoria"]).strip().upper()
             import re
@@ -669,7 +679,9 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         df_ranking_local = df_ranking_local.fillna("-").replace("nan", "-")
 
         def highlight_client(row):
-            if str(row["Grupo de Cliente"]).strip().upper() == str(grupo_escolhido).strip().upper():
+            row_grupo = str(row["Grupo de Cliente"]).strip().upper()
+            nome_busca = str(grupo_escolhido).strip().upper()
+            if row_grupo == nome_busca or row_grupo in nome_busca or nome_busca in row_grupo:
                 return ['background-color: rgba(244, 171, 19, 0.4); font-weight: bold'] * len(row)
             return [''] * len(row)
             
