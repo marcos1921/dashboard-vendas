@@ -100,6 +100,11 @@ if cookie_auth_stx == "true" and not st.session_state["autenticado"]:
     st.session_state["autenticado"] = True
     st.rerun()
 
+# 3. Dispara a criação do cookie de forma segura (fora de containers que serão apagados)
+if "set_auth_cookie" in st.session_state:
+    cookie_manager.set("auth_vendas", "true", max_age=st.session_state["set_auth_cookie"])
+    del st.session_state["set_auth_cookie"]
+
 login_container = st.empty()
 
 if not st.session_state["autenticado"]:
@@ -129,9 +134,10 @@ if not st.session_state["autenticado"]:
                     meia_noite_br = (agora_br + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
                     segundos_restantes = int((meia_noite_br - agora_br).total_seconds())
 
-                    # Grava o cookie real no navegador, expirando exatamente à meia-noite
-                    cookie_manager.set("auth_vendas", "true", max_age=segundos_restantes)
+                    # Salva no session_state para que o cookie seja criado FORA do container no próximo rerun
+                    st.session_state["set_auth_cookie"] = segundos_restantes
                     st.session_state["autenticado"] = True
+                    st.rerun()
                 else:
                     st.error("Senha incorreta!")
                     
