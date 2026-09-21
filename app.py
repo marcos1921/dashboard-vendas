@@ -94,13 +94,19 @@ if hasattr(st, "context") and hasattr(st.context, "cookies"):
     if st.context.cookies.get("auth_vendas") == "true":
         st.session_state["autenticado"] = True
 
-# 2. Fallback robusto via CookieManager do frontend
+# 2. Verifica pela URL (st.query_params) - a prova de falhas!
+if hasattr(st, "query_params") and st.query_params.get("auth") == "true":
+    st.session_state["autenticado"] = True
+
+# 3. Fallback robusto via CookieManager do frontend
 cookie_auth_stx = cookie_manager.get(cookie="auth_vendas")
 if cookie_auth_stx == "true" and not st.session_state["autenticado"]:
     st.session_state["autenticado"] = True
+    if hasattr(st, "query_params"):
+        st.query_params["auth"] = "true"
     st.rerun()
 
-# 3. Dispara a criação do cookie de forma segura (fora de containers que serão apagados)
+# 4. Dispara a criação do cookie de forma segura (fora de containers que serão apagados)
 if "set_auth_cookie" in st.session_state:
     cookie_manager.set("auth_vendas", "true", max_age=st.session_state["set_auth_cookie"])
     del st.session_state["set_auth_cookie"]
@@ -137,6 +143,8 @@ if not st.session_state["autenticado"]:
                     # Salva no session_state para que o cookie seja criado FORA do container no próximo rerun
                     st.session_state["set_auth_cookie"] = segundos_restantes
                     st.session_state["autenticado"] = True
+                    if hasattr(st, "query_params"):
+                        st.query_params["auth"] = "true"
                     st.rerun()
                 else:
                     st.error("Senha incorreta!")
