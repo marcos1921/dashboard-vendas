@@ -404,9 +404,21 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         st.stop()
 
     grupo_escolhido = st.sidebar.selectbox("Selecione a rede ou cliente", grupos_disponiveis, index=None, placeholder="Selecione um cliente...")
-    if not grupo_escolhido:
+    
+    if grupo_escolhido:
+        st.session_state["ultimo_cliente"] = grupo_escolhido
+
+    cliente_ativo = st.session_state.get("ultimo_cliente")
+    if cliente_ativo and cliente_ativo not in df_vendas["Grupo de Cliente"].values:
+        cliente_ativo = None
+    
+    # Se não tem cliente no histórico ou ele não existe mais na base, para
+    if not cliente_ativo:
         st.info("👈 Selecione um cliente no menu lateral para visualizar o dashboard.")
         st.stop()
+        
+    # Mantém o dashboard rodando com o último cliente selecionado, mesmo se o selectbox estiver vazio
+    grupo_escolhido = cliente_ativo
 
     # Mostra a data e hora do ÚLTIMO UPLOAD da base no menu lateral
     if path_vendas and os.path.exists(path_vendas):
