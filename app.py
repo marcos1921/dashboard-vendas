@@ -384,14 +384,25 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
 
     df_filt = df_vendas
     if termo_busca:
+        import re
+        # Remove caracteres especiais para busca burra (ex: "casa & cor" vira "casa cor")
+        termo_clean = re.sub(r'[^a-zA-Z0-9]+', ' ', termo_busca).strip()
+        termos = termo_clean.split()
+        
         grupos = df_vendas["Grupo de Cliente"].fillna("").astype(str)
         clientes = df_vendas["CLIENTE"].fillna("").astype(str)
-        mascara_busca = grupos.str.contains(termo_busca, case=False, regex=False) | clientes.str.contains(termo_busca, case=False, regex=False)
-
-        if termo_busca.isdigit():
-            codigo_buscado = str(int(termo_busca))
-            codigos = pd.to_numeric(df_vendas["CÓDIGO CLIENTE"], errors="coerce")
-            mascara_busca |= codigos.eq(int(codigo_buscado))
+        codigos = pd.to_numeric(df_vendas["CÓDIGO CLIENTE"], errors="coerce")
+        
+        mascara_busca = pd.Series(True, index=df_vendas.index)
+        for t in termos:
+            # Para cada palavra, verifica se existe no grupo, cliente ou código
+            mascara_termo = (
+                grupos.str.contains(t, case=False, regex=False) | 
+                clientes.str.contains(t, case=False, regex=False)
+            )
+            if t.isdigit():
+                mascara_termo |= codigos.eq(int(t))
+            mascara_busca &= mascara_termo
 
         df_filt = df_filt[mascara_busca]
 
@@ -409,6 +420,13 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         st.session_state["ultimo_cliente"] = grupo_escolhido
 
     cliente_ativo = st.session_state.get("ultimo_cliente")
+    
+    # Se o cliente ativo não existe mais nos filtros atuais (ou seja, o usuário pesquisou outro cliente)
+    # E o usuário digitou algo na busca, forçamos o cliente ativo a ser o primeiro resultado da nova busca!
+    if cliente_ativo not in grupos_disponiveis and termo_busca:
+        cliente_ativo = grupos_disponiveis[0]
+        st.session_state["ultimo_cliente"] = cliente_ativo
+
     if cliente_ativo and cliente_ativo not in df_vendas["Grupo de Cliente"].values:
         cliente_ativo = None
     
