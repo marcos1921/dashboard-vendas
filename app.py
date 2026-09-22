@@ -667,113 +667,167 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     # ==========================================
     # 5. CAMPANHAS A OFERTAR
     # ==========================================
-    st.markdown('<div class="header-yellow">BENEFÍCIOS E CAMPANHAS (OFERTE NO BALCÃO)</div>', unsafe_allow_html=True)
+    st.markdown("<div class=\"header-yellow\">🏆 CAMPANHAS DE INCENTIVO</div>", unsafe_allow_html=True)
+    tab_vamos_juntos, tab_conexao = st.tabs(["🏎️ Vamos Juntos (Stock Car)", "🤝 Conexão Suvinil"])
+    with tab_vamos_juntos:
     
-    camp = CAMPANHAS_MAP.get(chave_final, {}).copy()
+        camp = CAMPANHAS_MAP.get(chave_final, {}).copy()
     
-    # --- DADOS DA PLANILHA DE CAMPANHA (Se existir) ---
-    df_ranking_local = pd.DataFrame()
-    if 'df_campanhas' in locals() and df_campanhas is not None and not df_campanhas.empty and "Categoria" in df_campanhas.columns:
-        # 1. Filtra a categoria inteira
-        df_ranking_local = df_campanhas[df_campanhas["Categoria"].astype(str).str.strip().str.upper() == cat_atual].copy()
+        # --- DADOS DA PLANILHA DE CAMPANHA (Se existir) ---
+        df_ranking_local = pd.DataFrame()
+        if 'df_campanhas' in locals() and df_campanhas is not None and not df_campanhas.empty and "Categoria" in df_campanhas.columns:
+            # 1. Filtra a categoria inteira
+            df_ranking_local = df_campanhas[df_campanhas["Categoria"].astype(str).str.strip().str.upper() == cat_atual].copy()
         
-        if not df_ranking_local.empty:
-            # 2. Descobre quantas vagas existem para essa categoria nas regras base
-            import re
-            vagas_vj = 0
-            vagas_sc = 0
-            for k, v in CAMPANHAS_MAP.get(chave_final, {}).items():
-                v_upper = str(v).upper()
-                match = re.search(r"(\d+)\s*VAGA", v_upper)
-                if match:
-                    vagas = int(match.group(1))
-                    if "VAMOS JUNTOS" in v_upper: vagas_vj += vagas
-                    elif "STOCK CAR" in v_upper: vagas_sc += vagas
+            if not df_ranking_local.empty:
+                # 2. Descobre quantas vagas existem para essa categoria nas regras base
+                import re
+                vagas_vj = 0
+                vagas_sc = 0
+                for k, v in CAMPANHAS_MAP.get(chave_final, {}).items():
+                    v_upper = str(v).upper()
+                    match = re.search(r"(\d+)\s*VAGA", v_upper)
+                    if match:
+                        vagas = int(match.group(1))
+                        if "VAMOS JUNTOS" in v_upper: vagas_vj += vagas
+                        elif "STOCK CAR" in v_upper: vagas_sc += vagas
 
-            # 3. Ordena os clientes da categoria
-            df_ranking_local["Posição_num"] = pd.to_numeric(df_ranking_local["Posição"], errors='coerce')
-            df_ranking_local = df_ranking_local.sort_values(by="Posição_num", na_position="last")
+                # 3. Ordena os clientes da categoria
+                df_ranking_local["Posição_num"] = pd.to_numeric(df_ranking_local["Posição"], errors='coerce')
+                df_ranking_local = df_ranking_local.sort_values(by="Posição_num", na_position="last")
             
-            # 4. Distribui as classificações automaticamente (ignorando o que veio na planilha)
-            novas_classificacoes = []
-            for idx, row in df_ranking_local.iterrows():
-                pos_num = row["Posição_num"]
-                if pd.isna(pos_num):
-                    novas_classificacoes.append("-")
-                elif pos_num <= vagas_vj:
-                    novas_classificacoes.append("🏆 Classifica Vamos Juntos")
-                elif pos_num <= (vagas_vj + vagas_sc):
-                    novas_classificacoes.append("🏎️ Classifica Stock Car")
-                else:
-                    novas_classificacoes.append("-")
+                # 4. Distribui as classificações automaticamente (ignorando o que veio na planilha)
+                novas_classificacoes = []
+                for idx, row in df_ranking_local.iterrows():
+                    pos_num = row["Posição_num"]
+                    if pd.isna(pos_num):
+                        novas_classificacoes.append("-")
+                    elif pos_num <= vagas_vj:
+                        novas_classificacoes.append("🏆 Classifica Vamos Juntos")
+                    elif pos_num <= (vagas_vj + vagas_sc):
+                        novas_classificacoes.append("🏎️ Classifica Stock Car")
+                    else:
+                        novas_classificacoes.append("-")
             
-            df_ranking_local["Classificação"] = novas_classificacoes
+                df_ranking_local["Classificação"] = novas_classificacoes
             
-            # 5. Localiza o cliente atual dentro do ranking recalculado
-            cliente_camp = df_ranking_local[df_ranking_local["Grupo de Cliente"].astype(str).str.strip().str.upper() == nome_busca]
-            if not cliente_camp.empty:
-                linha_c = cliente_camp.iloc[0]
-                pos = str(linha_c.get("Posição", "")).strip()
-                pts = str(linha_c.get("Total pts", "")).strip()
-                classif = str(linha_c.get("Classificação", "")).strip().upper()
+                # 5. Localiza o cliente atual dentro do ranking recalculado
+                cliente_camp = df_ranking_local[df_ranking_local["Grupo de Cliente"].astype(str).str.strip().str.upper() == nome_busca]
+                if not cliente_camp.empty:
+                    linha_c = cliente_camp.iloc[0]
+                    pos = str(linha_c.get("Posição", "")).strip()
+                    pts = str(linha_c.get("Total pts", "")).strip()
+                    classif = str(linha_c.get("Classificação", "")).strip().upper()
                 
-                if pos and pos != "nan" and pos != "-" and "NÃO" not in pos.upper():
-                    try: pos_str = str(int(float(pos))) 
-                    except: pos_str = pos
-                    try: pts_str = str(int(float(pts)))
-                    except: pts_str = pts
+                    if pos and pos != "nan" and pos != "-" and "NÃO" not in pos.upper():
+                        try: pos_str = str(int(float(pos))) 
+                        except: pos_str = pos
+                        try: pts_str = str(int(float(pts)))
+                        except: pts_str = pts
                     
-                    ranking_text = f"<br><span style='color:#e51e25; font-size:1.1rem; font-weight:900;'>🏆 {pos_str}º LUGAR ({pts_str} pts)</span>"
+                        ranking_text = f"<br><span style='color:#e51e25; font-size:1.1rem; font-weight:900;'>🏆 {pos_str}º LUGAR ({pts_str} pts)</span>"
                     
-                    for k, v in camp.items():
-                        texto_campanha = str(v).upper()
-                        if "STOCK CAR" in texto_campanha or "VAMOS JUNTOS" in texto_campanha:
-                            camp[k] = str(v) + ranking_text
+                        for k, v in camp.items():
+                            texto_campanha = str(v).upper()
+                            if "STOCK CAR" in texto_campanha or "VAMOS JUNTOS" in texto_campanha:
+                                camp[k] = str(v) + ranking_text
 
-    cc1, cc2, cc3, cc4, cc5 = st.columns(5)
-    def box_campanha(titulo, valor):
-        return f"""<div style="background-color: var(--secondary-background-color); padding: 15px; border-radius: 8px; border-top: 4px solid #e51e25; min-height: 110px;">
-        <p style="color: var(--text-color); opacity: 0.7; font-size: 0.8rem; font-weight: 700; margin-bottom: 5px; text-transform: uppercase;">{titulo}</p>
-        <p style="color: var(--text-color); font-size: 1rem; font-weight: 800; line-height: 1.2;">{valor}</p></div>"""
+        cc1, cc2, cc3, cc4, cc5 = st.columns(5)
+        def box_campanha(titulo, valor):
+            return f"""<div style="background-color: var(--secondary-background-color); padding: 15px; border-radius: 8px; border-top: 4px solid #e51e25; min-height: 110px;">
+            <p style="color: var(--text-color); opacity: 0.7; font-size: 0.8rem; font-weight: 700; margin-bottom: 5px; text-transform: uppercase;">{titulo}</p>
+            <p style="color: var(--text-color); font-size: 1rem; font-weight: 800; line-height: 1.2;">{valor}</p></div>"""
     
-    with cc1: st.markdown(box_campanha("Rebates", camp.get('Rebates', '-') or '-'), unsafe_allow_html=True)
-    with cc2: st.markdown(box_campanha("Ação 1", camp.get('Camp1', '-') or '-'), unsafe_allow_html=True)
-    with cc3: st.markdown(box_campanha("Ação 2", camp.get('Camp2', '-') or '-'), unsafe_allow_html=True)
-    with cc4: st.markdown(box_campanha("Ação 3", camp.get('Camp3', '-') or '-'), unsafe_allow_html=True)
-    with cc5: st.markdown(box_campanha("Ação 4", camp.get('Camp4', '-') or '-'), unsafe_allow_html=True)
+        with cc1: st.markdown(box_campanha("Rebates", camp.get('Rebates', '-') or '-'), unsafe_allow_html=True)
+        with cc2: st.markdown(box_campanha("Ação 1", camp.get('Camp1', '-') or '-'), unsafe_allow_html=True)
+        with cc3: st.markdown(box_campanha("Ação 2", camp.get('Camp2', '-') or '-'), unsafe_allow_html=True)
+        with cc4: st.markdown(box_campanha("Ação 3", camp.get('Camp3', '-') or '-'), unsafe_allow_html=True)
+        with cc5: st.markdown(box_campanha("Ação 4", camp.get('Camp4', '-') or '-'), unsafe_allow_html=True)
 
-    # --- TABELA DE RANKING DA CATEGORIA ---
-    if not df_ranking_local.empty:
-        st.markdown(f'<div class="sub-title" style="margin-top: 25px; font-size: 1.1rem; color: #f4ab13;">🏆 RANKING GERAL - {cat_atual}</div>', unsafe_allow_html=True)
+        # --- TABELA DE RANKING DA CATEGORIA ---
+        if not df_ranking_local.empty:
+            st.markdown(f'<div class="sub-title" style="margin-top: 25px; font-size: 1.1rem; color: #f4ab13;">🏆 RANKING GERAL - {cat_atual}</div>', unsafe_allow_html=True)
         
-        # Remove a coluna temporária usada pra ordenação
-        df_ranking_local = df_ranking_local.drop(columns=["Posição_num"])
+            # Remove a coluna temporária usada pra ordenação
+            df_ranking_local = df_ranking_local.drop(columns=["Posição_num"])
         
-        def limpa_num(x):
-            try: return str(int(float(x)))
-            except: return str(x)
+            def limpa_num(x):
+                try: return str(int(float(x)))
+                except: return str(x)
         
-        df_ranking_local["Posição"] = df_ranking_local["Posição"].apply(limpa_num)
-        df_ranking_local["Total pts"] = df_ranking_local["Total pts"].apply(limpa_num)
-        df_ranking_local = df_ranking_local.fillna("-").replace("nan", "-")
+            df_ranking_local["Posição"] = df_ranking_local["Posição"].apply(limpa_num)
+            df_ranking_local["Total pts"] = df_ranking_local["Total pts"].apply(limpa_num)
+            df_ranking_local = df_ranking_local.fillna("-").replace("nan", "-")
 
-        def highlight_client(row):
-            row_grupo = str(row["Grupo de Cliente"]).strip().upper()
-            if row_grupo == nome_busca or row_grupo in nome_busca or nome_busca in row_grupo:
-                return ['background-color: rgba(244, 171, 19, 0.4); font-weight: bold'] * len(row)
-            return [''] * len(row)
+            def highlight_client(row):
+                row_grupo = str(row["Grupo de Cliente"]).strip().upper()
+                if row_grupo == nome_busca or row_grupo in nome_busca or nome_busca in row_grupo:
+                    return ['background-color: rgba(244, 171, 19, 0.4); font-weight: bold'] * len(row)
+                return [''] * len(row)
             
-        df_view = df_ranking_local[["Posição", "Grupo de Cliente", "Total pts", "Classificação"]]
+            df_view = df_ranking_local[["Posição", "Grupo de Cliente", "Total pts", "Classificação"]]
         
-        st.dataframe(
-            df_view.style.apply(highlight_client, axis=1),
-            use_container_width=True,
-            hide_index=True
-        )
-    else:
-        cats_disp = ", ".join(df_campanhas["Categoria"].astype(str).str.strip().str.upper().unique())
-        st.info(f"O ranking não foi exibido porque a categoria '{cat_atual}' do dashboard não bate com os nomes das categorias escritas na planilha de campanhas. Categorias lidas da planilha: {cats_disp}")
+            st.dataframe(
+                df_view.style.apply(highlight_client, axis=1),
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            cats_disp = ", ".join(df_campanhas["Categoria"].astype(str).str.strip().str.upper().unique())
+            st.info(f"O ranking não foi exibido porque a categoria '{cat_atual}' do dashboard não bate com os nomes das categorias escritas na planilha de campanhas. Categorias lidas da planilha: {cats_disp}")
 
+    with tab_conexao:
+        path_conexao = ARQ_CONEXAO_SERVIDOR
+        if os.path.exists(path_conexao):
+            try:
+                df_cx = pd.read_excel(path_conexao)
+                grupo_da_loja = df_grupo["Grupo de Cliente"].iloc[0] if not df_grupo.empty else grupo_ativo
+                nome_busca_cx = str(grupo_da_loja).strip().upper()
+                df_cx["Grupo Upper"] = df_cx["Grupo de lojas"].astype(str).str.strip().str.upper()
+                
+                cliente_cx = df_cx[df_cx["Grupo Upper"] == nome_busca_cx]
+                if cliente_cx.empty:
+                    cliente_cx = df_cx[df_cx["Grupo Upper"].apply(lambda x: x in nome_busca_cx or nome_busca_cx in x)]
+                
+                if not cliente_cx.empty:
+                    rank = cliente_cx.iloc[0]["Ranking"]
+                    st.markdown(f"<h4 style='color: var(--text-color);'>Posição Atual: {rank}º Lugar</h4>", unsafe_allow_html=True)
+                    
+                    cx1, cx2, cx3 = st.columns(3)
+                    
+                    def box_cx(titulo, valor, color="#e51e25"):
+                        return f"""<div style="background-color: var(--secondary-background-color); padding: 15px; border-radius: 8px; border-top: 4px solid {color}; min-height: 110px;">\n<p style="color: var(--text-color); opacity: 0.7; font-size: 0.8rem; font-weight: 700; margin-bottom: 5px; text-transform: uppercase;">{titulo}</p>\n<p style="color: var(--text-color); font-size: 1.1rem; font-weight: 800; line-height: 1.2;">{valor}</p></div>"""
+                    
+                    status_cx = str(cliente_cx.iloc[0]["Status Cliente"]).strip()
+                    status_color = "#28a745" if "Não" not in status_cx else "#dc3545"
+                    
+                    with cx1: st.markdown(box_cx("Status", status_cx, status_color), unsafe_allow_html=True)
+                    
+                    falta_vol = cliente_cx.iloc[0]["Falta Volume Elegibilidade"]
+                    falta_str = f"{falta_vol:,.0f} L".replace(",", ".") if isinstance(falta_vol, (int, float)) else str(falta_vol)
+                    with cx2: st.markdown(box_cx("Falta para Elegibilidade", falta_str), unsafe_allow_html=True)
+                    
+                    pontos = cliente_cx.iloc[0]["Pontos"]
+                    pontos_str = f"{pontos:,.2f}".replace(".", ",") if isinstance(pontos, (int, float)) else str(pontos)
+                    with cx3: st.markdown(box_cx("Pontuação", pontos_str), unsafe_allow_html=True)
+                    
+                    with st.expander("Ver Ranking Completo"):
+                        df_show = df_cx.drop(columns=["Grupo Upper"]).copy()
+                        
+                        def highlight_cx(row):
+                            if str(row["Grupo de lojas"]).strip().upper() == str(cliente_cx.iloc[0]["Grupo de lojas"]).strip().upper():
+                                return ["background-color: #ffeebf; color: #000; font-weight: bold;"] * len(row)
+                            return [""] * len(row)
+                        
+                        st.dataframe(df_show.style.apply(highlight_cx, axis=1), hide_index=True, use_container_width=True)
+                else:
+                    st.info("Cliente não encontrado no ranking Conexão Suvinil.")
+            except Exception as e:
+                st.error(f"Erro ao carregar Conexão Suvinil: {e}")
+        else:
+            st.info("O ranking da Conexão Suvinil não foi carregado pelo administrador.")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
     # ==========================================
     # 6. FINANCEIRO (TÍTULO DINÂMICO E TABELA LIMPA)
     # ==========================================
