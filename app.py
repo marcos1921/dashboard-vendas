@@ -632,10 +632,10 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         df_self_ant_mes = df_anterior[df_anterior["MES"] == MES_ATUAL]
         
         # Pega qualquer valor que não seja vazio e não seja "NÃO"
-        mask_self_at = df_self_atual_mes["SELF COLOR"].notna() & (df_self_atual_mes["SELF COLOR"].astype(str).str.strip() != "") & ~df_self_atual_mes["SELF COLOR"].astype(str).str.upper().str.contains("NÃO|NAO", na=False)
+        mask_self_at = df_self_atual_mes["SELF COLOR"].notna() & (df_self_atual_mes["SELF COLOR"].astype(str).str.strip() != "") & (df_self_atual_mes["SELF COLOR"].astype(str).str.strip() != "0") & ~df_self_atual_mes["SELF COLOR"].astype(str).str.upper().str.contains("NÃO|NAO", na=False)
         v_self_at = df_self_atual_mes[mask_self_at]["VENDALITROS"].sum()
         
-        mask_self_ant = df_self_ant_mes["SELF COLOR"].notna() & (df_self_ant_mes["SELF COLOR"].astype(str).str.strip() != "") & ~df_self_ant_mes["SELF COLOR"].astype(str).str.upper().str.contains("NÃO|NAO", na=False)
+        mask_self_ant = df_self_ant_mes["SELF COLOR"].notna() & (df_self_ant_mes["SELF COLOR"].astype(str).str.strip() != "") & (df_self_ant_mes["SELF COLOR"].astype(str).str.strip() != "0") & ~df_self_ant_mes["SELF COLOR"].astype(str).str.upper().str.contains("NÃO|NAO", na=False)
         v_self_ant = df_self_ant_mes[mask_self_ant]["VENDALITROS"].sum()
     dif_self = f"{(((v_self_at - v_self_ant) / v_self_ant) * 100):+.1f}%" if v_self_ant > 0 else "Sem base"
     with col_f3:
