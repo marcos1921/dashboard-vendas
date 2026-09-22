@@ -165,6 +165,7 @@ if not os.path.exists(PASTA_DADOS): os.makedirs(PASTA_DADOS)
 ARQ_VENDAS_SERVIDOR = os.path.join(PASTA_DADOS, "vendas.xlsx")
 ARQ_RECEBER_SERVIDOR = os.path.join(PASTA_DADOS, "receber.csv")
 ARQ_CAMPANHAS_SERVIDOR = os.path.join(PASTA_DADOS, "campanhas.xlsx")
+ARQ_CONEXAO_SERVIDOR = os.path.join(PASTA_DADOS, "conexao_suvinil.xlsx")
 
 # ==========================================
 # ÁREA DO ADMINISTRADOR
@@ -181,21 +182,27 @@ if aba_selecionada == "⚙️ Área do Administrador":
         up_vendas = st.file_uploader("1. Substituir Base de Vendas (Excel)", type=["xlsx"])
         up_receber = st.file_uploader("2. Substituir Base de Receber (CSV)", type=["csv"])
         up_campanhas = st.file_uploader("3. Substituir Base de Campanhas (Excel)", type=["xlsx", "xls"])
+        up_conexao = st.file_uploader("4. Substituir Ranking Conexão Suvinil (Excel)", type=["xlsx", "xls"])
+        
         if st.button("💾 Salvar Novas Bases"):
-            if up_vendas is not None or up_receber is not None or up_campanhas is not None:
-                if up_vendas is not None:
-                    with open(ARQ_VENDAS_SERVIDOR, "wb") as arquivo:
-                        arquivo.write(up_vendas.getbuffer())
-                if up_receber is not None:
-                    with open(ARQ_RECEBER_SERVIDOR, "wb") as arquivo:
-                        arquivo.write(up_receber.getbuffer())
-                if up_campanhas is not None:
-                    with open(ARQ_CAMPANHAS_SERVIDOR, "wb") as arquivo:
-                        arquivo.write(up_campanhas.getbuffer())
-                st.cache_data.clear()
-                st.success("✅ Bases atualizadas com sucesso! Recarregando...")
-                time.sleep(1.5)
-                st.rerun()
+            if up_vendas is not None or up_receber is not None or up_campanhas is not None or up_conexao is not None:
+                with st.spinner("Substituindo bases no servidor..."):
+                    if up_vendas is not None:
+                        with open(ARQ_VENDAS_SERVIDOR, "wb") as arquivo:
+                            arquivo.write(up_vendas.getbuffer())
+                    if up_receber is not None:
+                        with open(ARQ_RECEBER_SERVIDOR, "wb") as arquivo:
+                            arquivo.write(up_receber.getbuffer())
+                    if up_campanhas is not None:
+                        with open(ARQ_CAMPANHAS_SERVIDOR, "wb") as arquivo:
+                            arquivo.write(up_campanhas.getbuffer())
+                    if up_conexao is not None:
+                        with open(ARQ_CONEXAO_SERVIDOR, "wb") as arquivo:
+                            arquivo.write(up_conexao.getbuffer())
+                    st.cache_data.clear()
+                    st.success("✅ Bases atualizadas com sucesso! Recarregando...")
+                    time.sleep(1.5)
+                    st.rerun()
             else:
                 st.warning("⚠️ Faça o upload de pelo menos uma base antes de salvar.")
         
