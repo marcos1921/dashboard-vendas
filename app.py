@@ -620,16 +620,13 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     v_self_at = 0
     v_self_ant = 0
     if "SELF COLOR" in df_atual.columns:
-        # Filtra apenas o mês atual para a Selfcolor (Mensal)
-        df_self_atual_mes = df_atual[df_atual["MES"] == MES_ATUAL]
-        df_self_ant_mes = df_anterior[df_anterior["MES"] == MES_ATUAL]
-        
-        # Pega qualquer valor que remeta a "BASE/ COLORANTE", "SIM", etc. Evita "Não SelfColor".
-        v_self_at = df_self_atual_mes[df_self_atual_mes["SELF COLOR"].astype(str).str.upper().str.contains("BASE|COLORANTE|SIM|SELFCOLOR", na=False) & ~df_self_atual_mes["SELF COLOR"].astype(str).str.upper().str.contains("NÃO|NAO", na=False)]["VENDALITROS"].sum()
-        v_self_ant = df_self_ant_mes[df_self_ant_mes["SELF COLOR"].astype(str).str.upper().str.contains("BASE|COLORANTE|SIM|SELFCOLOR", na=False) & ~df_self_ant_mes["SELF COLOR"].astype(str).str.upper().str.contains("NÃO|NAO", na=False)]["VENDALITROS"].sum()
+        # Pega qualquer valor que remeta a "BASE", "COLORANT", "SIM", etc. Evita "Não SelfColor".
+        # Acumulado do ano (YTD) assim como as outras marcas
+        v_self_at = df_atual[df_atual["SELF COLOR"].astype(str).str.upper().str.contains("BASE|COLORANT|SIM|SELFCOLOR", na=False) & ~df_atual["SELF COLOR"].astype(str).str.upper().str.contains("NÃO|NAO", na=False)]["VENDALITROS"].sum()
+        v_self_ant = df_anterior[df_anterior["SELF COLOR"].astype(str).str.upper().str.contains("BASE|COLORANT|SIM|SELFCOLOR", na=False) & ~df_anterior["SELF COLOR"].astype(str).str.upper().str.contains("NÃO|NAO", na=False)]["VENDALITROS"].sum()
     dif_self = f"{(((v_self_at - v_self_ant) / v_self_ant) * 100):+.1f}%" if v_self_ant > 0 else "Sem base"
     with col_f3:
-        st.metric(f"Selfcolor (Mês {MES_ATUAL:02d})", f"{v_self_at:,.0f} L".replace(',', '.') if v_self_at > 0 else "-", dif_self if v_self_at > 0 else None)
+        st.metric("Selfcolor (Litros)", f"{v_self_at:,.0f} L".replace(',', '.') if v_self_at > 0 else "-", dif_self if v_self_at > 0 else None)
 
     v_ad_at = df_atual[df_atual["FABRICANTE_LAVADO"].str.contains("ADERE", na=False)]["VALORTOTAL"].sum()
     v_ad_ant = df_anterior[df_anterior["FABRICANTE_LAVADO"].str.contains("ADERE", na=False)]["VALORTOTAL"].sum()
