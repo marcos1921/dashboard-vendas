@@ -378,7 +378,10 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         </script>
     """, height=0, width=0)
 
-    termo_busca = st.sidebar.text_input("🔍 Nome ou código do cliente", placeholder="Ex.: 141428 ou Express").strip()
+    tipo_visao = st.sidebar.radio("Modo de Visão", ["Por Grupo (Rede)", "Por Loja Individual"], horizontal=True)
+    col_visao = "Grupo de Cliente" if tipo_visao == "Por Grupo (Rede)" else "CLIENTE"
+    
+    termo_busca = st.sidebar.text_input("🔎 Nome ou código do cliente", placeholder="Ex.: 141428 ou Express").strip()
     cidades = sorted(df_vendas["CIDADE"].dropna().astype(str).str.strip().unique())
     cidade_sel = st.sidebar.selectbox("Cidade (opcional)", cidades, index=None, placeholder="Todas as cidades...")
 
@@ -409,7 +412,7 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     if cidade_sel:
         df_filt = df_filt[df_filt["CIDADE"].astype(str).str.strip() == cidade_sel]
 
-    grupos_disponiveis = sorted(df_filt["Grupo de Cliente"].dropna().unique())
+    grupos_disponiveis = sorted(df_filt[col_visao].dropna().unique())
     if not grupos_disponiveis:
         st.error("Nenhum cliente encontrado com os filtros informados.")
         st.stop()
@@ -423,11 +426,11 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     
     # Se o cliente ativo não existe mais nos filtros atuais (ou seja, o usuário pesquisou outro cliente)
     # E o usuário digitou algo na busca, forçamos o cliente ativo a ser o primeiro resultado da nova busca!
-    if cliente_ativo not in grupos_disponiveis and termo_busca:
+    if cliente_ativo not in grupos_disponiveis and (termo_busca or cidade_sel):
         cliente_ativo = grupos_disponiveis[0]
         st.session_state["ultimo_cliente"] = cliente_ativo
 
-    if cliente_ativo and cliente_ativo not in df_vendas["Grupo de Cliente"].values:
+    if cliente_ativo and cliente_ativo not in df_vendas[col_visao].values:
         cliente_ativo = None
     
     # Se não tem cliente no histórico ou ele não existe mais na base, para
@@ -452,7 +455,8 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         st.sidebar.info(f"⏳ **Último upload da base:** {data_formatada}")
         
     # --- PROCESSAMENTO DO GRUPO ---
-    df_grupo = df_vendas[df_vendas["Grupo de Cliente"] == grupo_escolhido]
+    grupo_escolhido = cliente_ativo
+    df_grupo = df_vendas[df_vendas[col_visao] == grupo_escolhido]
     
     dia_ano_max = max_dt_base.dayofyear if pd.notna(max_dt_base) else 365
     df_atual = df_grupo[(df_grupo["ANO"] == ANO_ATUAL) & (df_grupo["DATA_DT"].dt.dayofyear <= dia_ano_max)]
@@ -467,7 +471,9 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     cat_atual = cat_dashboard
     
     if 'df_campanhas' in locals() and df_campanhas is not None and not df_campanhas.empty and "Categoria" in df_campanhas.columns:
-        nome_busca = str(grupo_escolhido).strip().upper()
+        # A campanha sempre é avaliada pelo 'Grupo de Cliente', mesmo se estivermos na visão por Loja
+        grupo_da_loja = df_grupo["Grupo de Cliente"].iloc[0] if not df_grupo.empty else grupo_escolhido
+        nome_busca = str(grupo_da_loja).strip().upper()
         grupos_camp = df_campanhas["Grupo de Cliente"].astype(str).str.strip().str.upper()
         
         # 1. Tenta achar o cliente pelo nome exato
@@ -690,7 +696,7 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
             df_ranking_local["Classificação"] = novas_classificacoes
             
             # 5. Localiza o cliente atual dentro do ranking recalculado
-            cliente_camp = df_ranking_local[df_ranking_local["Grupo de Cliente"].astype(str).str.strip().str.upper() == str(grupo_escolhido).strip().upper()]
+            cliente_camp = df_ranking_local[df_ranking_local["Grupo de Cliente"].astype(str).str.strip().str.upper() == nome_busca]
             if not cliente_camp.empty:
                 linha_c = cliente_camp.iloc[0]
                 pos = str(linha_c.get("Posição", "")).strip()
@@ -739,7 +745,6 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
 
         def highlight_client(row):
             row_grupo = str(row["Grupo de Cliente"]).strip().upper()
-            nome_busca = str(grupo_escolhido).strip().upper()
             if row_grupo == nome_busca or row_grupo in nome_busca or nome_busca in row_grupo:
                 return ['background-color: rgba(244, 171, 19, 0.4); font-weight: bold'] * len(row)
             return [''] * len(row)
