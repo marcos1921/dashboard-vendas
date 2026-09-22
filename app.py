@@ -899,12 +899,3 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         
         tabela_estilizada = df_boletos_view[colunas_boletos].style.apply(destacar_vencidos, axis=1)
         st.dataframe(tabela_estilizada, use_container_width=True, hide_index=True)
-        
-        # Legenda explicativa
-        st.markdown('''
-            <div style="font-size: 0.9em; margin-top: -10px; margin-bottom: 20px; padding: 10px; background-color: rgba(0,0,0,0.05); border-radius: 5px;">
-                <b>📋 Legenda da Tabela:</b><br>
-                <span style="display: inline-block; width: 15px; height: 15px; background-color: rgba(30, 144, 255, 0.6); vertical-align: middle; margin-right: 5px;"></span> <b>Pedidos a Receber (P):</b> Valores referentes a pedidos em carteira (não são notas fiscais faturadas).<br>
-                <span style="display: inline-block; width: 15px; height: 15px; background-color: rgba(229, 30, 37, 0.6); vertical-align: middle; margin-right: 5px;"></span> <b>Notas Vencidas (N):</b> Notas fiscais faturadas que já passaram da data de vencimento.
-            </div>
-        ''', unsafe_allow_html=True)
