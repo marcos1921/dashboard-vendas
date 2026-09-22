@@ -378,9 +378,6 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         </script>
     """, height=0, width=0)
 
-    tipo_visao = st.sidebar.radio("Modo de Visão", ["Por Grupo (Rede)", "Por Loja Individual"], horizontal=True)
-    col_visao = "Grupo de Cliente" if tipo_visao == "Por Grupo (Rede)" else "CLIENTE"
-    
     termo_busca = st.sidebar.text_input("🔎 Nome ou código do cliente", placeholder="Ex.: 141428 ou Express").strip()
     cidades = sorted(df_vendas["CIDADE"].dropna().astype(str).str.strip().unique())
     cidade_sel = st.sidebar.selectbox("Cidade (opcional)", cidades, index=None, placeholder="Todas as cidades...")
@@ -412,36 +409,45 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     if cidade_sel:
         df_filt = df_filt[df_filt["CIDADE"].astype(str).str.strip() == cidade_sel]
 
-    grupos_disponiveis = sorted(df_filt[col_visao].dropna().unique())
+    grupos_disponiveis = sorted(df_filt["Grupo de Cliente"].dropna().unique())
     if not grupos_disponiveis:
         st.error("Nenhum cliente encontrado com os filtros informados.")
         st.stop()
 
-    grupo_escolhido = st.sidebar.selectbox("Selecione a rede ou cliente", grupos_disponiveis, index=None, placeholder="Selecione um cliente...")
+    grupo_escolhido = st.sidebar.selectbox("Selecione a Rede (Grupo)", grupos_disponiveis, index=None, placeholder="Selecione uma rede...")
     
     if grupo_escolhido:
-        st.session_state["ultimo_cliente"] = grupo_escolhido
+        st.session_state["ultimo_grupo"] = grupo_escolhido
 
-    cliente_ativo = st.session_state.get("ultimo_cliente")
+    grupo_ativo = st.session_state.get("ultimo_grupo")
     
-    # Se o cliente ativo não existe mais nos filtros atuais (ou seja, o usuário pesquisou outro cliente)
-    # E o usuário digitou algo na busca, forçamos o cliente ativo a ser o primeiro resultado da nova busca!
-    if cliente_ativo not in grupos_disponiveis and (termo_busca or cidade_sel):
-        cliente_ativo = grupos_disponiveis[0]
-        st.session_state["ultimo_cliente"] = cliente_ativo
+    # Se o grupo ativo não existe mais nos filtros atuais (ou seja, o usuário pesquisou outra coisa)
+    if grupo_ativo not in grupos_disponiveis and (termo_busca or cidade_sel):
+        grupo_ativo = grupos_disponiveis[0]
+        st.session_state["ultimo_grupo"] = grupo_ativo
 
-    if cliente_ativo and cliente_ativo not in df_vendas[col_visao].values:
-        cliente_ativo = None
+    if grupo_ativo and grupo_ativo not in df_vendas["Grupo de Cliente"].values:
+        grupo_ativo = None
     
-    # Se não tem cliente no histórico ou ele não existe mais na base, para
-    if not cliente_ativo:
-        st.info("👈 Selecione um cliente no menu lateral para visualizar o dashboard.")
+    if not grupo_ativo:
+        st.info("👈 Selecione uma rede no menu lateral para visualizar o dashboard.")
         st.stop()
         
-    # Mantém o dashboard rodando com o último cliente selecionado, mesmo se o selectbox estiver vazio
-    grupo_escolhido = cliente_ativo
+    # Filtra as lojas que pertencem a este grupo_ativo (usando df_vendas, não df_filt, para mostrar todas da rede)
+    lojas_do_grupo = sorted(df_vendas[df_vendas["Grupo de Cliente"] == grupo_ativo]["CLIENTE"].dropna().unique())
+    
+    # Auto-selecionar loja se a busca filtrou exatamente UMA loja específica para esse grupo
+    lojas_filtradas = sorted(df_filt[df_filt["Grupo de Cliente"] == grupo_ativo]["CLIENTE"].dropna().unique())
+    loja_default_idx = None
+    if termo_busca and len(lojas_filtradas) == 1:
+        unica_loja = lojas_filtradas[0]
+        if unica_loja in lojas_do_grupo:
+            loja_default_idx = lojas_do_grupo.index(unica_loja)
 
-    # Mostra a data e hora do ÚLTIMO UPLOAD da base no menu lateral
+    loja_escolhida = st.sidebar.selectbox("Filtrar por Loja (opcional)", lojas_do_grupo, index=loja_default_idx, placeholder="Todas as lojas da rede...")
+    
+    st.sidebar.markdown("---")
+    
     if path_vendas and os.path.exists(path_vendas):
         # Lê a data e hora no servidor
         timestamp_upload = os.path.getmtime(path_vendas)
@@ -455,8 +461,12 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         st.sidebar.info(f"⏳ **Último upload da base:** {data_formatada}")
         
     # --- PROCESSAMENTO DO GRUPO ---
-    grupo_escolhido = cliente_ativo
-    df_grupo = df_vendas[df_vendas[col_visao] == grupo_escolhido]
+    if loja_escolhida:
+        df_grupo = df_vendas[df_vendas["CLIENTE"] == loja_escolhida]
+    else:
+        df_grupo = df_vendas[df_vendas["Grupo de Cliente"] == grupo_ativo]
+        
+    grupo_da_loja = grupo_ativo
     
     dia_ano_max = max_dt_base.dayofyear if pd.notna(max_dt_base) else 365
     df_atual = df_grupo[(df_grupo["ANO"] == ANO_ATUAL) & (df_grupo["DATA_DT"].dt.dayofyear <= dia_ano_max)]
