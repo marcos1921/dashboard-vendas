@@ -821,6 +821,25 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
                     with st.expander("Ver Ranking Completo"):
                         df_show = df_cx.drop(columns=["Grupo Upper"]).copy()
                         
+                        def formata_inteiro(val):
+                            try:
+                                return f"{float(val):,.0f}".replace(",", ".")
+                            except:
+                                return val
+                                
+                        def formata_dec(val):
+                            try:
+                                return f"{float(val):,.2f}".replace(".", ",")
+                            except:
+                                return val
+                                
+                        for c in ["Sell Out 2025", "Sell Out 2026", "Falta Volume Elegibilidade"]:
+                            if c in df_show.columns:
+                                df_show[c] = df_show[c].apply(formata_inteiro)
+                                
+                        if "Pontos" in df_show.columns:
+                            df_show["Pontos"] = df_show["Pontos"].apply(formata_dec)
+                        
                         def highlight_cx(row):
                             if str(row["Grupo de lojas"]).strip().upper() == str(cliente_cx.iloc[0]["Grupo de lojas"]).strip().upper():
                                 return ["background-color: #ffeebf; color: #000; font-weight: bold;"] * len(row)
