@@ -482,7 +482,7 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     
     if 'df_campanhas' in locals() and df_campanhas is not None and not df_campanhas.empty and "Categoria" in df_campanhas.columns:
         # A campanha sempre é avaliada pelo 'Grupo de Cliente', mesmo se estivermos na visão por Loja
-        grupo_da_loja = df_grupo["Grupo de Cliente"].iloc[0] if not df_grupo.empty else grupo_escolhido
+        grupo_da_loja = df_grupo["Grupo de Cliente"].iloc[0] if not df_grupo.empty else grupo_ativo
         nome_busca = str(grupo_da_loja).strip().upper()
         grupos_camp = df_campanhas["Grupo de Cliente"].astype(str).str.strip().str.upper()
         
@@ -507,8 +507,9 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
                     chave_final = k
                     break
 
+    titulo_tela = loja_escolhida if loja_escolhida else grupo_ativo
     st.markdown(f'<div class="cat-destaque">🏆 Categoria: {escape(cat_atual)}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="cliente-titulo">{escape(grupo_escolhido)}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="cliente-titulo">{escape(titulo_tela)}</div>', unsafe_allow_html=True)
 
     # ==========================================
     # 1. SUVINIL + SHERWIN
