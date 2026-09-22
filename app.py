@@ -752,17 +752,28 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     else:
         df_boletos_view = boletos_grupo.sort_values(by="VENCIMENTO_DT")
         
-        # Filtra e conta os boletos vencidos matematicamente
-        qtd_vencidos = sum((pd.notna(v) and v < HOJE) for v in df_boletos_view["VENCIMENTO_DT"])
+        # Filtra e conta
+        mask_pedidos = df_boletos_view["DOCUMENTO"].astype(str).str.upper().str.contains("-P")
+        qtd_pedidos = mask_pedidos.sum()
+        qtd_notas = len(boletos_grupo) - qtd_pedidos
         
-        if qtd_vencidos > 0:
-            # TÍTULO VERMELHO: Pelo menos um vencido (DATA REMOVIDA)
-            st.markdown('<div class="header-red">SITUAÇÃO FINANCEIRA (BOLETOS VENCIDOS)</div>', unsafe_allow_html=True)
-            texto_alerta = f"O grupo possui {len(boletos_grupo)} boleto(s) em aberto, sendo {qtd_vencidos} vencido(s)."
+        # Conta notas vencidas (ignorando pedidos para essa métrica)
+        qtd_notas_vencidas = 0
+        for i, row in df_boletos_view.iterrows():
+            if not "-P" in str(row.get("DOCUMENTO", "")).upper():
+                venc_val = row.get("VENCIMENTO_DT")
+                if pd.notna(venc_val) and venc_val < HOJE:
+                    qtd_notas_vencidas += 1
+        
+        if qtd_notas_vencidas > 0:
+            st.markdown('<div class="header-red">SITUAÇÃO FINANCEIRA (NOTAS VENCIDAS)</div>', unsafe_allow_html=True)
+            texto_alerta = f"O grupo possui <b>{qtd_notas} nota(s)</b> em aberto (sendo <b>{qtd_notas_vencidas} vencida(s)</b>)."
         else:
-            # TÍTULO AMARELO: Boletos existem, mas todos no prazo (DATA REMOVIDA)
-            st.markdown('<div class="header-yellow">SITUAÇÃO FINANCEIRA (BOLETOS A VENCER)</div>', unsafe_allow_html=True)
-            texto_alerta = f"O grupo possui {len(boletos_grupo)} boleto(s) em aberto."
+            st.markdown('<div class="header-yellow">SITUAÇÃO FINANCEIRA (EM DIA)</div>', unsafe_allow_html=True)
+            texto_alerta = f"O grupo possui <b>{qtd_notas} nota(s)</b> em aberto (nenhuma vencida)."
+            
+        if qtd_pedidos > 0:
+            texto_alerta += f" Além disso, há <b>{qtd_pedidos} pedido(s)</b> a receber."
             
         # ALERTA CUSTOMIZADO AMARELO (Sem símbolo, cor dinâmica pro modo claro/escuro)
         st.markdown(f'<div style="background-color: rgba(244, 171, 19, 0.15); border-left: 5px solid #f4ab13; padding: 15px; border-radius: 5px; color: var(--text-color); font-weight: 600; margin-bottom: 20px;">{texto_alerta}</div>', unsafe_allow_html=True)
@@ -773,7 +784,11 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         def destacar_vencidos(row):
             doc = str(row.get("DOCUMENTO", "")).upper()
             
-            # Fallback for date check since VENCIMENTO_DT is hidden
+            # Pedidos a receber (P) têm prioridade absoluta na cor (Azul)
+            if "-P" in doc:
+                return ['background-color: rgba(30, 144, 255, 0.3); font-weight: bold'] * len(row)
+                
+            # Notas (N) vencidas ficam em vermelho
             venc_val = row.get("VENCIMENTO")
             try:
                 venc = pd.to_datetime(venc_val, dayfirst=True) if pd.notna(venc_val) else None
@@ -782,10 +797,16 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
             except:
                 pass
                 
-            if "-P" in doc:
-                return ['background-color: rgba(30, 144, 255, 0.3); font-weight: bold'] * len(row)
-                
             return [''] * len(row)
         
         tabela_estilizada = df_boletos_view[colunas_boletos].style.apply(destacar_vencidos, axis=1)
         st.dataframe(tabela_estilizada, use_container_width=True, hide_index=True)
+        
+        # Legenda explicativa
+        st.markdown('''
+            <div style="font-size: 0.9em; margin-top: -10px; margin-bottom: 20px; padding: 10px; background-color: rgba(0,0,0,0.05); border-radius: 5px;">
+                <b>📋 Legenda da Tabela:</b><br>
+                <span style="display: inline-block; width: 15px; height: 15px; background-color: rgba(30, 144, 255, 0.6); vertical-align: middle; margin-right: 5px;"></span> <b>Pedidos a Receber (P):</b> Valores referentes a pedidos em carteira (não são notas fiscais faturadas).<br>
+                <span style="display: inline-block; width: 15px; height: 15px; background-color: rgba(229, 30, 37, 0.6); vertical-align: middle; margin-right: 5px;"></span> <b>Notas Vencidas (N):</b> Notas fiscais faturadas que já passaram da data de vencimento.
+            </div>
+        ''', unsafe_allow_html=True)
