@@ -543,8 +543,9 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     c1.metric("Positivação", "🟢 SIM" if L_atual > 0 else "🔴 NÃO")
     c2.metric(f"Venda Litros ({ANO_ATUAL})", f"{L_atual:,.0f} L".replace(',', '.'), txt_cresc)
     
-    delta_pulv = "Meta Atingida" if L_atual >= 50 else f"-{50 - L_atual:.1f} L (Abaixo da Meta)"
-    c3.metric("Pulverização", "META OK" if L_atual >= 50 else f"Faltam {50 - L_atual:,.0f} L".replace(',', '.'), delta_pulv)
+    L_atual_suv_only = df_atual[df_atual["FABRICANTE_LAVADO"].str.contains("SUVINIL", na=False)]["VENDALITROS"].sum()
+    delta_pulv = "Meta Atingida" if L_atual_suv_only >= 50 else f"-{50 - L_atual_suv_only:,.1f} L (Abaixo da Meta)".replace(',', '.')
+    c3.metric("Pulverização (Só Suvinil)", "META OK" if L_atual_suv_only >= 50 else f"Faltam {50 - L_atual_suv_only:,.0f} L".replace(',', '.'), delta_pulv)
     
     c4.metric("Status Ciclo", status_inat, "Tempo de recompra", delta_color="off")
 
