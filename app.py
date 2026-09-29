@@ -671,12 +671,12 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         mes_selecionado = st.selectbox("Mês", meses_disponiveis, index=idx_default,
                                         format_func=lambda m: MESES_NOME.get(m, str(m)), key="filtro_mes_perf_mensal")
 
-    df_at_mes = df_atual[df_atual["MES"] == mes_selecionado]
+    df_at_mes = df_grupo[(df_grupo["ANO"] == ANO_ATUAL) & (df_grupo["MES"] == mes_selecionado)]
     mes_comparacao = mes_selecionado + 1
     if mes_comparacao <= 12:
-        df_ant_mes = df_anterior[df_anterior["MES"] == mes_comparacao]
+        df_ant_mes = df_grupo[(df_grupo["ANO"] == ANO_ANTERIOR) & (df_grupo["MES"] == mes_comparacao)]
     else:
-        df_ant_mes = df_atual[df_atual["MES"] == 1]
+        df_ant_mes = df_grupo[(df_grupo["ANO"] == ANO_ATUAL) & (df_grupo["MES"] == 1)]
     MESES_ABREV = {1: "Jan", 2: "Fev", 3: "Mar", 4: "Abr", 5: "Mai", 6: "Jun",
                    7: "Jul", 8: "Ago", 9: "Set", 10: "Out", 11: "Nov", 12: "Dez"}
     ano_comp = ANO_ANTERIOR if mes_comparacao <= 12 else ANO_ATUAL
