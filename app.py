@@ -600,13 +600,25 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         )
 
     todas_hierarquias = df_vendas[df_vendas["FABRICANTE_LAVADO"].str.contains("SUVINIL|SHERWIN", na=False)]["HIERARQUIA AGRUPADA"].dropna().astype(str).unique()
-    hierarquias_compradas = cli_suv_sher["HIERARQUIA AGRUPADA"].dropna().astype(str).unique()
+    
+    # Calculate volume per purchased hierarchy
+    if not cli_suv_sher.empty:
+        df_comp = cli_suv_sher.groupby("HIERARQUIA AGRUPADA")["VENDALITROS"].sum().reset_index()
+        df_comp.columns = ["PRODUTOS COMPRADOS", "VOLUME (L)"]
+        df_comp = df_comp.sort_values(by="VOLUME (L)", ascending=False)
+        hierarquias_compradas = df_comp["PRODUTOS COMPRADOS"].tolist()
+        # Format the volume string to PT-BR
+        df_comp["VOLUME (L)"] = df_comp["VOLUME (L)"].apply(lambda x: f"{x:,.1f} L".replace(',', 'X').replace('.', ',').replace('X', '.'))
+    else:
+        hierarquias_compradas = []
+        df_comp = pd.DataFrame(columns=["PRODUTOS COMPRADOS", "VOLUME (L)"])
+
     hierarquias_faltantes = [h for h in todas_hierarquias if h not in hierarquias_compradas]
     
     col_h1, col_h2 = st.columns(2)
     with col_h1:
         st.markdown(f"**✅ Linhas Já Compradas ({len(hierarquias_compradas)}):**")
-        st.dataframe(pd.DataFrame(hierarquias_compradas, columns=["PRODUTOS COMPRADOS"]), hide_index=True, use_container_width=True, height=200)
+        st.dataframe(df_comp, hide_index=True, use_container_width=True, height=200)
             
     with col_h2:
         st.markdown(f"**❌ Oportunidades - Não Compradas ({len(hierarquias_faltantes)}):**")
