@@ -672,25 +672,33 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
                                         format_func=lambda m: MESES_NOME.get(m, str(m)), key="filtro_mes_perf_mensal")
 
     df_at_mes = df_atual[df_atual["MES"] == mes_selecionado]
-    df_ant_mes = df_anterior[df_anterior["MES"] == mes_selecionado]
+    mes_comparacao = mes_selecionado + 1
+    if mes_comparacao <= 12:
+        df_ant_mes = df_anterior[df_anterior["MES"] == mes_comparacao]
+    else:
+        df_ant_mes = df_atual[df_atual["MES"] == 1]
+    MESES_ABREV = {1: "Jan", 2: "Fev", 3: "Mar", 4: "Abr", 5: "Mai", 6: "Jun",
+                   7: "Jul", 8: "Ago", 9: "Set", 10: "Out", 11: "Nov", 12: "Dez"}
+    ano_comp = ANO_ANTERIOR if mes_comparacao <= 12 else ANO_ATUAL
+    lbl_comp = f"vs {MESES_ABREV[mes_comparacao if mes_comparacao <= 12 else 1]}/{str(ano_comp)[-2:]}"
 
     col_m0, col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(6)
 
     vm_suv_at = df_at_mes[df_at_mes["FABRICANTE_LAVADO"].str.contains("SUVINIL", na=False)]["VENDALITROS"].sum()
     vm_suv_ant = df_ant_mes[df_ant_mes["FABRICANTE_LAVADO"].str.contains("SUVINIL", na=False)]["VENDALITROS"].sum()
-    dif_m_suv = f"{(((vm_suv_at - vm_suv_ant) / vm_suv_ant) * 100):+.1f}%" if vm_suv_ant > 0 else "Sem base"
+    dif_m_suv = f"{(((vm_suv_at - vm_suv_ant) / vm_suv_ant) * 100):+.1f}% ({lbl_comp})" if vm_suv_ant > 0 else "Sem base"
     with col_m0:
         st.metric("Suvinil (Litros)", f"{vm_suv_at:,.0f} L".replace(',', '.') if vm_suv_at > 0 else "-", dif_m_suv if vm_suv_at > 0 else None)
 
     vm_amais_at = df_at_mes[df_at_mes["FABRICANTE_LAVADO"].str.contains("AMAIS", na=False)]["VENDALITROS"].sum()
     vm_amais_ant = df_ant_mes[df_ant_mes["FABRICANTE_LAVADO"].str.contains("AMAIS", na=False)]["VENDALITROS"].sum()
-    dif_m_amais = f"{(((vm_amais_at - vm_amais_ant) / vm_amais_ant) * 100):+.1f}%" if vm_amais_ant > 0 else "Sem base"
+    dif_m_amais = f"{(((vm_amais_at - vm_amais_ant) / vm_amais_ant) * 100):+.1f}% ({lbl_comp})" if vm_amais_ant > 0 else "Sem base"
     with col_m1:
         st.metric("Amais (Litros)", f"{vm_amais_at:,.0f} L".replace(',', '.') if vm_amais_at > 0 else "-", dif_m_amais if vm_amais_at > 0 else None)
 
     vm_farb_at = df_at_mes[df_at_mes["FABRICANTE_LAVADO"].str.contains("FARBEN", na=False)]["VENDALITROS"].sum()
     vm_farb_ant = df_ant_mes[df_ant_mes["FABRICANTE_LAVADO"].str.contains("FARBEN", na=False)]["VENDALITROS"].sum()
-    dif_m_farb = f"{(((vm_farb_at - vm_farb_ant) / vm_farb_ant) * 100):+.1f}%" if vm_farb_ant > 0 else "Sem base"
+    dif_m_farb = f"{(((vm_farb_at - vm_farb_ant) / vm_farb_ant) * 100):+.1f}% ({lbl_comp})" if vm_farb_ant > 0 else "Sem base"
     with col_m2:
         st.metric("Farben (Litros)", f"{vm_farb_at:,.0f} L".replace(',', '.') if vm_farb_at > 0 else "-", dif_m_farb if vm_farb_at > 0 else None)
 
@@ -701,19 +709,19 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         vm_self_at = df_at_mes[mask_m_self_at]["VENDALITROS"].sum()
         mask_m_self_ant = df_ant_mes["SELF COLOR"].notna() & (df_ant_mes["SELF COLOR"].astype(str).str.strip() != "") & (~df_ant_mes["SELF COLOR"].astype(str).str.strip().isin(["0", "0.0", "0,0", "0.00"])) & ~df_ant_mes["SELF COLOR"].astype(str).str.upper().str.contains("NÃO|NAO", na=False)
         vm_self_ant = df_ant_mes[mask_m_self_ant]["VENDALITROS"].sum()
-    dif_m_self = f"{(((vm_self_at - vm_self_ant) / vm_self_ant) * 100):+.1f}%" if vm_self_ant > 0 else "Sem base"
+    dif_m_self = f"{(((vm_self_at - vm_self_ant) / vm_self_ant) * 100):+.1f}% ({lbl_comp})" if vm_self_ant > 0 else "Sem base"
     with col_m3:
         st.metric(f"Selfcolor ({MESES_NOME[mes_selecionado][:3]})", f"{vm_self_at:,.0f} L".replace(',', '.') if vm_self_at > 0 else "-", dif_m_self if vm_self_at > 0 else None)
 
     vm_ad_at = df_at_mes[df_at_mes["FABRICANTE_LAVADO"].str.contains("ADERE", na=False)]["VALORTOTAL"].sum()
     vm_ad_ant = df_ant_mes[df_ant_mes["FABRICANTE_LAVADO"].str.contains("ADERE", na=False)]["VALORTOTAL"].sum()
-    dif_m_ad = f"{(((vm_ad_at - vm_ad_ant) / vm_ad_ant) * 100):+.1f}%" if vm_ad_ant > 0 else "Sem base"
+    dif_m_ad = f"{(((vm_ad_at - vm_ad_ant) / vm_ad_ant) * 100):+.1f}% ({lbl_comp})" if vm_ad_ant > 0 else "Sem base"
     with col_m4:
         st.metric("Adere (Faturamento)", f"R$ {vm_ad_at:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.') if vm_ad_at > 0 else "-", dif_m_ad if vm_ad_at > 0 else None)
 
     vm_con_at = df_at_mes[df_at_mes["FABRICANTE_LAVADO"].str.contains("CONDOR", na=False)]["VALORTOTAL"].sum()
     vm_con_ant = df_ant_mes[df_ant_mes["FABRICANTE_LAVADO"].str.contains("CONDOR", na=False)]["VALORTOTAL"].sum()
-    dif_m_con = f"{(((vm_con_at - vm_con_ant) / vm_con_ant) * 100):+.1f}%" if vm_con_ant > 0 else "Sem base"
+    dif_m_con = f"{(((vm_con_at - vm_con_ant) / vm_con_ant) * 100):+.1f}% ({lbl_comp})" if vm_con_ant > 0 else "Sem base"
     with col_m5:
         st.metric("Condor (Faturamento)", f"R$ {vm_con_at:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.') if vm_con_at > 0 else "-", dif_m_con if vm_con_at > 0 else None)
 
