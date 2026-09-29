@@ -682,83 +682,52 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     # ==========================================
     # 3.5 PERFORMANCE DE MARCAS (POR PERÍODO)
     # ==========================================
-    st.markdown('<div class="header-yellow">📅 PERFORMANCE DE MARCAS</div>', unsafe_allow_html=True)
+    st.markdown('<div class="header-yellow">📅 PERFORMANCE DE MARCAS (FILTRO POR PERÍODO)</div>', unsafe_allow_html=True)
     
-    col_p_d1, col_p_d2, col_p_d3 = st.columns([1, 1, 2])
+    col_p_d1, col_p_d2, col_p_d3, col_p_d4 = st.columns(4)
     with col_p_d1:
-        p_atual = st.date_input("Período", value=(), key="p_atual", format="DD/MM/YYYY")
+        dt_p_atual_ini = st.date_input("Período Atual (De)", value=None, key="p_atual_ini", format="DD/MM/YYYY")
     with col_p_d2:
-        comp_mode = st.selectbox("Comparação", ["Ano Anterior", "Mês Anterior", "Personalizado", "Sem Comparação"])
-        
-    p_comp = ()
-    if comp_mode == "Personalizado":
-        with col_p_d3:
-            p_comp = st.date_input("Período de Comparação", value=(), key="p_comp", format="DD/MM/YYYY")
+        dt_p_atual_fim = st.date_input("Período Atual (Até)", value=None, key="p_atual_fim", format="DD/MM/YYYY")
+    with col_p_d3:
+        dt_p_comp_ini = st.date_input("Comparar com (De)", value=None, key="p_comp_ini", format="DD/MM/YYYY")
+    with col_p_d4:
+        dt_p_comp_fim = st.date_input("Comparar com (Até)", value=None, key="p_comp_fim", format="DD/MM/YYYY")
 
-    # Current period filtering
-    if len(p_atual) == 2:
-        dt_p_atual_ini, dt_p_atual_fim = p_atual
+    if dt_p_atual_ini and dt_p_atual_fim:
         df_at_mes = df_grupo[(df_grupo["DATA_DT"].dt.date >= dt_p_atual_ini) & (df_grupo["DATA_DT"].dt.date <= dt_p_atual_fim)]
-    elif len(p_atual) == 1:
-        dt_p_atual_ini = dt_p_atual_fim = p_atual[0]
-        df_at_mes = df_grupo[(df_grupo["DATA_DT"].dt.date >= dt_p_atual_ini) & (df_grupo["DATA_DT"].dt.date <= dt_p_atual_fim)]
+        label_periodo = " (Período)"
     else:
         df_at_mes = df_atual
-        dt_p_atual_ini = dt_p_atual_fim = None
+        label_periodo = ""
+        
+    if dt_p_comp_ini and dt_p_comp_fim:
+        df_ant_mes = df_grupo[(df_grupo["DATA_DT"].dt.date >= dt_p_comp_ini) & (df_grupo["DATA_DT"].dt.date <= dt_p_comp_fim)]
+        lbl_comp = "vs Seleção"
+    else:
+        df_ant_mes = df_anterior
+        lbl_comp = f"vs {ANO_ANTERIOR}"
 
-    # Comparison period filtering
-    if comp_mode == "Sem Comparação":
-        df_ant_mes = pd.DataFrame(columns=df_grupo.columns)
-    elif comp_mode == "Ano Anterior":
-        if dt_p_atual_ini and dt_p_atual_fim:
-            try:
-                ini_comp = dt_p_atual_ini.replace(year=dt_p_atual_ini.year - 1)
-                fim_comp = dt_p_atual_fim.replace(year=dt_p_atual_fim.year - 1)
-            except ValueError: # handle leap years
-                ini_comp = (pd.to_datetime(dt_p_atual_ini) - pd.DateOffset(years=1)).date()
-                fim_comp = (pd.to_datetime(dt_p_atual_fim) - pd.DateOffset(years=1)).date()
-            df_ant_mes = df_grupo[(df_grupo["DATA_DT"].dt.date >= ini_comp) & (df_grupo["DATA_DT"].dt.date <= fim_comp)]
-        else:
-            df_ant_mes = df_anterior
-    elif comp_mode == "Mês Anterior":
-        if dt_p_atual_ini and dt_p_atual_fim:
-            ini_comp = (pd.to_datetime(dt_p_atual_ini) - pd.DateOffset(months=1)).date()
-            fim_comp = (pd.to_datetime(dt_p_atual_fim) - pd.DateOffset(months=1)).date()
-            df_ant_mes = df_grupo[(df_grupo["DATA_DT"].dt.date >= ini_comp) & (df_grupo["DATA_DT"].dt.date <= fim_comp)]
-        else:
-            max_dt = df_atual["DATA_DT"].max() if not df_atual.empty else pd.to_datetime(HOJE)
-            ini_comp = (max_dt.replace(day=1) - pd.DateOffset(months=1)).date()
-            fim_comp = (pd.to_datetime(ini_comp) + pd.offsets.MonthEnd(1)).date()
-            df_ant_mes = df_grupo[(df_grupo["DATA_DT"].dt.date >= ini_comp) & (df_grupo["DATA_DT"].dt.date <= fim_comp)]
-    elif comp_mode == "Personalizado":
-        if len(p_comp) == 2:
-            dt_p_comp_ini, dt_p_comp_fim = p_comp
-            df_ant_mes = df_grupo[(df_grupo["DATA_DT"].dt.date >= dt_p_comp_ini) & (df_grupo["DATA_DT"].dt.date <= dt_p_comp_fim)]
-        elif len(p_comp) == 1:
-            dt_p_comp_ini = dt_p_comp_fim = p_comp[0]
-            df_ant_mes = df_grupo[(df_grupo["DATA_DT"].dt.date >= dt_p_comp_ini) & (df_grupo["DATA_DT"].dt.date <= dt_p_comp_fim)]
-        else:
-            df_ant_mes = pd.DataFrame(columns=df_grupo.columns)
 
     col_m0, col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(6)
 
     vm_suv_at = df_at_mes[df_at_mes["FABRICANTE_LAVADO"].str.contains("SUVINIL", na=False)]["VENDALITROS"].sum()
     vm_suv_ant = df_ant_mes[df_ant_mes["FABRICANTE_LAVADO"].str.contains("SUVINIL", na=False)]["VENDALITROS"].sum()
-    dif_m_suv = f"{(((vm_suv_at - vm_suv_ant) / vm_suv_ant) * 100):+.1f}%" if vm_suv_ant > 0 else "Sem base"
+    dif_m_suv = f"{(((vm_suv_at - vm_suv_ant) / vm_suv_ant) * 100):+.1f}% ({lbl_comp})" if vm_suv_ant > 0 else "Sem base"
     with col_m0:
-        st.metric("Suvinil", f"{vm_suv_at:,.0f} L".replace(',', '.') if vm_suv_at > 0 else "-", dif_m_suv if vm_suv_at > 0 else None)
+        st.metric("Suvinil (Litros)", f"{vm_suv_at:,.0f} L".replace(',', '.') if vm_suv_at > 0 else "-", dif_m_suv if vm_suv_at > 0 else None)
 
     vm_amais_at = df_at_mes[df_at_mes["FABRICANTE_LAVADO"].str.contains("AMAIS", na=False)]["VENDALITROS"].sum()
     vm_amais_ant = df_ant_mes[df_ant_mes["FABRICANTE_LAVADO"].str.contains("AMAIS", na=False)]["VENDALITROS"].sum()
-    dif_m_amais = f"{(((vm_amais_at - vm_amais_ant) / vm_amais_ant) * 100):+.1f}%" if vm_amais_ant > 0 else "Sem base"
+    dif_m_amais = f"{(((vm_amais_at - vm_amais_ant) / vm_amais_ant) * 100):+.1f}% ({lbl_comp})" if vm_amais_ant > 0 else "Sem base"
     with col_m1:
-        st.metric("Amais", f"{vm_amais_at:,.0f} L".replace(',', '.') if vm_amais_at > 0 else "-", dif_m_amais if vm_amais_at > 0 else None)
+        st.metric("Amais (Litros)", f"{vm_amais_at:,.0f} L".replace(',', '.') if vm_amais_at > 0 else "-", dif_m_amais if vm_amais_at > 0 else None)
 
     vm_farb_at = df_at_mes[df_at_mes["FABRICANTE_LAVADO"].str.contains("FARBEN", na=False)]["VENDALITROS"].sum()
     vm_farb_ant = df_ant_mes[df_ant_mes["FABRICANTE_LAVADO"].str.contains("FARBEN", na=False)]["VENDALITROS"].sum()
-    dif_m_farb = f"{(((vm_farb_at - vm_farb_ant) / vm_farb_ant) * 100):+.1f}%" if vm_farb_ant > 0 else "Sem base"
+    dif_m_farb = f"{(((vm_farb_at - vm_farb_ant) / vm_farb_ant) * 100):+.1f}% ({lbl_comp})" if vm_farb_ant > 0 else "Sem base"
     with col_m2:
-        st.metric("Farben", f"{vm_farb_at:,.0f} L".replace(',', '.') if vm_farb_at > 0 else "-", dif_m_farb if vm_farb_at > 0 else None)
+        st.metric("Farben (Litros)", f"{vm_farb_at:,.0f} L".replace(',', '.') if vm_farb_at > 0 else "-", dif_m_farb if vm_farb_at > 0 else None)
 
     vm_self_at = 0
     vm_self_ant = 0
@@ -767,21 +736,21 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         vm_self_at = df_at_mes[mask_m_self_at]["VENDALITROS"].sum()
         mask_m_self_ant = df_ant_mes["SELF COLOR"].notna() & (df_ant_mes["SELF COLOR"].astype(str).str.strip() != "") & (~df_ant_mes["SELF COLOR"].astype(str).str.strip().isin(["0", "0.0", "0,0", "0.00"])) & ~df_ant_mes["SELF COLOR"].astype(str).str.upper().str.contains("NÃO|NAO", na=False)
         vm_self_ant = df_ant_mes[mask_m_self_ant]["VENDALITROS"].sum()
-    dif_m_self = f"{(((vm_self_at - vm_self_ant) / vm_self_ant) * 100):+.1f}%" if vm_self_ant > 0 else "Sem base"
+    dif_m_self = f"{(((vm_self_at - vm_self_ant) / vm_self_ant) * 100):+.1f}% ({lbl_comp})" if vm_self_ant > 0 else "Sem base"
     with col_m3:
-        st.metric("Selfcolor", f"{vm_self_at:,.0f} L".replace(',', '.') if vm_self_at > 0 else "-", dif_m_self if vm_self_at > 0 else None)
+        st.metric(f"Selfcolor{label_periodo}", f"{vm_self_at:,.0f} L".replace(',', '.') if vm_self_at > 0 else "-", dif_m_self if vm_self_at > 0 else None)
 
     vm_ad_at = df_at_mes[df_at_mes["FABRICANTE_LAVADO"].str.contains("ADERE", na=False)]["VALORTOTAL"].sum()
     vm_ad_ant = df_ant_mes[df_ant_mes["FABRICANTE_LAVADO"].str.contains("ADERE", na=False)]["VALORTOTAL"].sum()
-    dif_m_ad = f"{(((vm_ad_at - vm_ad_ant) / vm_ad_ant) * 100):+.1f}%" if vm_ad_ant > 0 else "Sem base"
+    dif_m_ad = f"{(((vm_ad_at - vm_ad_ant) / vm_ad_ant) * 100):+.1f}% ({lbl_comp})" if vm_ad_ant > 0 else "Sem base"
     with col_m4:
-        st.metric("Adere", f"R$ {vm_ad_at:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.') if vm_ad_at > 0 else "-", dif_m_ad if vm_ad_at > 0 else None)
+        st.metric("Adere (Faturamento)", f"R$ {vm_ad_at:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.') if vm_ad_at > 0 else "-", dif_m_ad if vm_ad_at > 0 else None)
 
     vm_con_at = df_at_mes[df_at_mes["FABRICANTE_LAVADO"].str.contains("CONDOR", na=False)]["VALORTOTAL"].sum()
     vm_con_ant = df_ant_mes[df_ant_mes["FABRICANTE_LAVADO"].str.contains("CONDOR", na=False)]["VALORTOTAL"].sum()
-    dif_m_con = f"{(((vm_con_at - vm_con_ant) / vm_con_ant) * 100):+.1f}%" if vm_con_ant > 0 else "Sem base"
+    dif_m_con = f"{(((vm_con_at - vm_con_ant) / vm_con_ant) * 100):+.1f}% ({lbl_comp})" if vm_con_ant > 0 else "Sem base"
     with col_m5:
-        st.metric("Condor", f"R$ {vm_con_at:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.') if vm_con_at > 0 else "-", dif_m_con if vm_con_at > 0 else None)
+        st.metric("Condor (Faturamento)", f"R$ {vm_con_at:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.') if vm_con_at > 0 else "-", dif_m_con if vm_con_at > 0 else None)
 
     # ==========================================
     # 4. COMPRAS DOS ÚLTIMOS 30 DIAS
