@@ -608,7 +608,7 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         df_comp = df_comp.sort_values(by="VOLUME (L)", ascending=False)
         hierarquias_compradas = df_comp["PRODUTOS COMPRADOS"].tolist()
         # Format the volume string to PT-BR
-        df_comp["VOLUME (L)"] = df_comp["VOLUME (L)"].apply(lambda x: f"{x:,.1f} L".replace(',', 'X').replace('.', ',').replace('X', '.'))
+        df_comp["VOLUME (L)"] = df_comp["VOLUME (L)"].apply(lambda x: f"{x:,.0f} L".replace(',', '.'))
     else:
         hierarquias_compradas = []
         df_comp = pd.DataFrame(columns=["PRODUTOS COMPRADOS", "VOLUME (L)"])
