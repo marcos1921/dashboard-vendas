@@ -684,15 +684,25 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     # ==========================================
     st.markdown('<div class="header-yellow">📅 PERFORMANCE DE MARCAS (FILTRO POR PERÍODO)</div>', unsafe_allow_html=True)
     
-    col_p_d1, col_p_d2, col_p_d3, col_p_d4 = st.columns(4)
-    with col_p_d1:
-        dt_p_atual_ini = st.date_input("Período Atual (De)", value=None, key="p_atual_ini", format="DD/MM/YYYY")
-    with col_p_d2:
-        dt_p_atual_fim = st.date_input("Período Atual (Até)", value=None, key="p_atual_fim", format="DD/MM/YYYY")
-    with col_p_d3:
-        dt_p_comp_ini = st.date_input("Comparar com (De)", value=None, key="p_comp_ini", format="DD/MM/YYYY")
-    with col_p_d4:
-        dt_p_comp_fim = st.date_input("Comparar com (Até)", value=None, key="p_comp_fim", format="DD/MM/YYYY")
+    col_bloco1, col_bloco2 = st.columns(2)
+    
+    with col_bloco1:
+        with st.container(border=True):
+            st.markdown("<p style='margin-bottom: -15px; font-size: 0.95em; color: #e0e0e0;'><strong>Período Principal</strong></p>", unsafe_allow_html=True)
+            c1, c2 = st.columns(2)
+            with c1:
+                dt_p_atual_ini = st.date_input("De", value=None, key="p_atual_ini", format="DD/MM/YYYY")
+            with c2:
+                dt_p_atual_fim = st.date_input("Até", value=None, key="p_atual_fim", format="DD/MM/YYYY")
+
+    with col_bloco2:
+        with st.container(border=True):
+            st.markdown("<p style='margin-bottom: -15px; font-size: 0.95em; color: #888;'><strong>Comparar com</strong></p>", unsafe_allow_html=True)
+            c3, c4 = st.columns(2)
+            with c3:
+                dt_p_comp_ini = st.date_input("De ", value=None, key="p_comp_ini", format="DD/MM/YYYY")
+            with c4:
+                dt_p_comp_fim = st.date_input("Até ", value=None, key="p_comp_fim", format="DD/MM/YYYY")
 
     if dt_p_atual_ini and dt_p_atual_fim:
         df_at_mes = df_grupo[(df_grupo["DATA_DT"].dt.date >= dt_p_atual_ini) & (df_grupo["DATA_DT"].dt.date <= dt_p_atual_fim)]
