@@ -667,32 +667,34 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         st.metric("Condor (Faturamento)", f"R$ {v_con_at:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.') if v_con_at > 0 else "-", dif_con if v_con_at > 0 else None)
 
     # ==========================================
-    # 3.5 PERFORMANCE MENSAL DE MARCAS (com filtro de mês)
+    # 3.5 PERFORMANCE DE MARCAS (POR PERÍODO)
     # ==========================================
-    MESES_NOME = {1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril", 5: "Maio", 6: "Junho",
-                  7: "Julho", 8: "Agosto", 9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"}
-    meses_disponiveis = sorted(df_atual["MES"].dropna().unique().astype(int).tolist())
-    if not meses_disponiveis:
-        meses_disponiveis = [MES_ATUAL]
-    idx_default = meses_disponiveis.index(MES_ATUAL) if MES_ATUAL in meses_disponiveis else len(meses_disponiveis) - 1
+    st.markdown('<div class="header-yellow">📅 PERFORMANCE DE MARCAS (FILTRO POR PERÍODO)</div>', unsafe_allow_html=True)
+    
+    col_p_d1, col_p_d2, col_p_d3, col_p_d4 = st.columns(4)
+    with col_p_d1:
+        dt_p_atual_ini = st.date_input("Período Atual (De)", value=None, key="p_atual_ini", format="DD/MM/YYYY")
+    with col_p_d2:
+        dt_p_atual_fim = st.date_input("Período Atual (Até)", value=None, key="p_atual_fim", format="DD/MM/YYYY")
+    with col_p_d3:
+        dt_p_comp_ini = st.date_input("Comparar com (De)", value=None, key="p_comp_ini", format="DD/MM/YYYY")
+    with col_p_d4:
+        dt_p_comp_fim = st.date_input("Comparar com (Até)", value=None, key="p_comp_fim", format="DD/MM/YYYY")
 
-    col_header_m, col_filtro_m = st.columns([3, 1])
-    with col_header_m:
-        st.markdown('<div class="header-yellow">📅 PERFORMANCE MENSAL DE MARCAS</div>', unsafe_allow_html=True)
-    with col_filtro_m:
-        mes_selecionado = st.selectbox("Mês", meses_disponiveis, index=idx_default,
-                                        format_func=lambda m: MESES_NOME.get(m, str(m)), key="filtro_mes_perf_mensal")
-
-    df_at_mes = df_grupo[(df_grupo["ANO"] == ANO_ATUAL) & (df_grupo["MES"] == mes_selecionado)]
-    mes_comparacao = mes_selecionado + 1
-    if mes_comparacao <= 12:
-        df_ant_mes = df_grupo[(df_grupo["ANO"] == ANO_ANTERIOR) & (df_grupo["MES"] == mes_comparacao)]
+    if dt_p_atual_ini and dt_p_atual_fim:
+        df_at_mes = df_grupo[(df_grupo["DATA_DT"].dt.date >= dt_p_atual_ini) & (df_grupo["DATA_DT"].dt.date <= dt_p_atual_fim)]
+        label_periodo = " (Período)"
     else:
-        df_ant_mes = df_grupo[(df_grupo["ANO"] == ANO_ATUAL) & (df_grupo["MES"] == 1)]
-    MESES_ABREV = {1: "Jan", 2: "Fev", 3: "Mar", 4: "Abr", 5: "Mai", 6: "Jun",
-                   7: "Jul", 8: "Ago", 9: "Set", 10: "Out", 11: "Nov", 12: "Dez"}
-    ano_comp = ANO_ANTERIOR if mes_comparacao <= 12 else ANO_ATUAL
-    lbl_comp = f"vs {MESES_ABREV[mes_comparacao if mes_comparacao <= 12 else 1]}/{str(ano_comp)[-2:]}"
+        df_at_mes = df_atual
+        label_periodo = ""
+        
+    if dt_p_comp_ini and dt_p_comp_fim:
+        df_ant_mes = df_grupo[(df_grupo["DATA_DT"].dt.date >= dt_p_comp_ini) & (df_grupo["DATA_DT"].dt.date <= dt_p_comp_fim)]
+        lbl_comp = "vs Seleção"
+    else:
+        df_ant_mes = df_anterior
+        lbl_comp = f"vs {ANO_ANTERIOR}"
+
 
     col_m0, col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(6)
 
@@ -723,7 +725,7 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
         vm_self_ant = df_ant_mes[mask_m_self_ant]["VENDALITROS"].sum()
     dif_m_self = f"{(((vm_self_at - vm_self_ant) / vm_self_ant) * 100):+.1f}% ({lbl_comp})" if vm_self_ant > 0 else "Sem base"
     with col_m3:
-        st.metric(f"Selfcolor ({MESES_NOME[mes_selecionado][:3]})", f"{vm_self_at:,.0f} L".replace(',', '.') if vm_self_at > 0 else "-", dif_m_self if vm_self_at > 0 else None)
+        st.metric(f"Selfcolor{label_periodo}", f"{vm_self_at:,.0f} L".replace(',', '.') if vm_self_at > 0 else "-", dif_m_self if vm_self_at > 0 else None)
 
     vm_ad_at = df_at_mes[df_at_mes["FABRICANTE_LAVADO"].str.contains("ADERE", na=False)]["VALORTOTAL"].sum()
     vm_ad_ant = df_ant_mes[df_ant_mes["FABRICANTE_LAVADO"].str.contains("ADERE", na=False)]["VALORTOTAL"].sum()
