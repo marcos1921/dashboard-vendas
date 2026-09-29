@@ -684,24 +684,30 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     # ==========================================
     st.markdown('<div class="header-yellow">📅 PERFORMANCE DE MARCAS (FILTRO POR PERÍODO)</div>', unsafe_allow_html=True)
     
-    col_p_d1, col_p_d2, col_p_d3, col_p_d4 = st.columns(4)
+    col_p_d1, col_p_d2 = st.columns(2)
     with col_p_d1:
-        dt_p_atual_ini = st.date_input("Período Atual (De)", value=None, key="p_atual_ini", format="DD/MM/YYYY")
+        p_atual = st.date_input("Período Atual", value=[], key="p_atual", format="DD/MM/YYYY")
     with col_p_d2:
-        dt_p_atual_fim = st.date_input("Período Atual (Até)", value=None, key="p_atual_fim", format="DD/MM/YYYY")
-    with col_p_d3:
-        dt_p_comp_ini = st.date_input("Comparar com (De)", value=None, key="p_comp_ini", format="DD/MM/YYYY")
-    with col_p_d4:
-        dt_p_comp_fim = st.date_input("Comparar com (Até)", value=None, key="p_comp_fim", format="DD/MM/YYYY")
+        p_comp = st.date_input("Comparar com", value=[], key="p_comp", format="DD/MM/YYYY")
 
-    if dt_p_atual_ini and dt_p_atual_fim:
+    if len(p_atual) == 2:
+        dt_p_atual_ini, dt_p_atual_fim = p_atual
+        df_at_mes = df_grupo[(df_grupo["DATA_DT"].dt.date >= dt_p_atual_ini) & (df_grupo["DATA_DT"].dt.date <= dt_p_atual_fim)]
+        label_periodo = " (Período)"
+    elif len(p_atual) == 1:
+        dt_p_atual_ini = dt_p_atual_fim = p_atual[0]
         df_at_mes = df_grupo[(df_grupo["DATA_DT"].dt.date >= dt_p_atual_ini) & (df_grupo["DATA_DT"].dt.date <= dt_p_atual_fim)]
         label_periodo = " (Período)"
     else:
         df_at_mes = df_atual
         label_periodo = ""
         
-    if dt_p_comp_ini and dt_p_comp_fim:
+    if len(p_comp) == 2:
+        dt_p_comp_ini, dt_p_comp_fim = p_comp
+        df_ant_mes = df_grupo[(df_grupo["DATA_DT"].dt.date >= dt_p_comp_ini) & (df_grupo["DATA_DT"].dt.date <= dt_p_comp_fim)]
+        lbl_comp = "vs Seleção"
+    elif len(p_comp) == 1:
+        dt_p_comp_ini = dt_p_comp_fim = p_comp[0]
         df_ant_mes = df_grupo[(df_grupo["DATA_DT"].dt.date >= dt_p_comp_ini) & (df_grupo["DATA_DT"].dt.date <= dt_p_comp_fim)]
         lbl_comp = "vs Seleção"
     else:
