@@ -552,9 +552,21 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     # ==========================================
     # 2. MIX BÁSICO & HIERARQUIA DE PRODUTOS
     # ==========================================
-    st.markdown('<div class="header-yellow">MIX BÁSICO & HIERARQUIA DE PRODUTOS</div>', unsafe_allow_html=True)
-    
-    cli_suv_sher = df_atual[df_atual["FABRICANTE_LAVADO"].str.contains("SUVINIL|SHERWIN", na=False)]
+    col_mix_header, col_mix_dt1, col_mix_dt2 = st.columns([3, 1, 1])
+    with col_mix_header:
+        st.markdown('<div class="header-yellow">MIX BÁSICO & HIERARQUIA DE PRODUTOS</div>', unsafe_allow_html=True)
+    with col_mix_dt1:
+        dt_mix_inicio = st.date_input("De", value=None, key="mix_dt_inicio", format="DD/MM/YYYY")
+    with col_mix_dt2:
+        dt_mix_fim = st.date_input("Até", value=None, key="mix_dt_fim", format="DD/MM/YYYY")
+
+    if dt_mix_inicio and dt_mix_fim:
+        df_mix_base = df_atual[(df_atual["DATA_DT"].dt.date >= dt_mix_inicio) & (df_atual["DATA_DT"].dt.date <= dt_mix_fim)]
+        st.caption(f"📅 Filtrando: {dt_mix_inicio.strftime('%d/%m/%Y')} a {dt_mix_fim.strftime('%d/%m/%Y')}")
+    else:
+        df_mix_base = df_atual
+
+    cli_suv_sher = df_mix_base[df_mix_base["FABRICANTE_LAVADO"].str.contains("SUVINIL|SHERWIN", na=False)]
     
     vol_alvenaria = cli_suv_sher[cli_suv_sher["MIX BASICO"].astype(str).str.upper().str.contains("ALVENARIA", na=False)]["VENDALITROS"].sum()
     vol_complementos = cli_suv_sher[cli_suv_sher["MIX BASICO"].astype(str).str.upper().str.contains("COMPLEMENTO", na=False)]["VENDALITROS"].sum()
