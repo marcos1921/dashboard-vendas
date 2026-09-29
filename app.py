@@ -605,6 +605,7 @@ elif aba_selecionada == "🔍 Consulta de Clientes":
     if not cli_suv_sher.empty:
         df_comp = cli_suv_sher.groupby("HIERARQUIA AGRUPADA")["VENDALITROS"].sum().reset_index()
         df_comp.columns = ["PRODUTOS COMPRADOS", "VOLUME (L)"]
+        df_comp = df_comp[df_comp["VOLUME (L)"] > 0]  # Remove devoluções/negativos
         df_comp = df_comp.sort_values(by="VOLUME (L)", ascending=False)
         hierarquias_compradas = df_comp["PRODUTOS COMPRADOS"].tolist()
         # Format the volume string to PT-BR
