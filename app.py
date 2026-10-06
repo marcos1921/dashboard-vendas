@@ -303,6 +303,17 @@ if aba_selecionada == "⚙️ Área do Administrador":
                 df_rel["Fat Adere"] = df_rel["Fat Adere"].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                 df_rel["Fat Condor"] = df_rel["Fat Condor"].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                 
+                busca_relatorio = st.text_input("🔍 Buscar cliente na lista abaixo:", placeholder="Digite qualquer parte do nome para filtrar as tabelas...", key="busca_rel")
+                if busca_relatorio:
+                    import re
+                    termo_limpo = re.sub(r'[^a-zA-Z0-9]+', ' ', busca_relatorio).strip()
+                    termos = termo_limpo.split()
+                    
+                    mascara = pd.Series(True, index=df_rel.index)
+                    for t in termos:
+                        mascara &= df_rel["Cliente / Grupo"].str.contains(t, case=False, regex=False)
+                    df_rel = df_rel[mascara]
+                
                 aba_pos, aba_mix, aba_ade, aba_con = st.tabs(["❌ Não Positivados", "⚠️ Falta Mix Básico", "📦 Sem Adere", "🧹 Sem Condor"])
                 
                 with aba_pos:
