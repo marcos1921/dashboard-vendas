@@ -263,9 +263,9 @@ if aba_selecionada == "⚙️ Área do Administrador":
                 
                 df_suv_sher = df_periodo[df_periodo["FABRICANTE"].str.contains("SUVINIL|SHERWIN", na=False)]
                 vol_suv = df_suv_sher.groupby("CLIENTE_GRUPO")["VENDALITROS"].sum()
-                vol_alv = df_suv_sher[df_suv_sher["MIX BASICO"] == "ALVENARIA"].groupby("CLIENTE_GRUPO")["VENDALITROS"].sum()
-                vol_comp = df_suv_sher[df_suv_sher["MIX BASICO"] == "COMPLEMENTOS"].groupby("CLIENTE_GRUPO")["VENDALITROS"].sum()
-                vol_esm = df_suv_sher[df_suv_sher["MIX BASICO"] == "ESMALTES E VERNIZES"].groupby("CLIENTE_GRUPO")["VENDALITROS"].sum()
+                vol_alv = df_suv_sher[df_suv_sher["MIX BASICO"].str.contains("ALVENARIA", na=False)].groupby("CLIENTE_GRUPO")["VENDALITROS"].sum()
+                vol_comp = df_suv_sher[df_suv_sher["MIX BASICO"].str.contains("COMPLEMENTO", na=False)].groupby("CLIENTE_GRUPO")["VENDALITROS"].sum()
+                vol_esm = df_suv_sher[df_suv_sher["MIX BASICO"].str.contains("ESM", na=False)].groupby("CLIENTE_GRUPO")["VENDALITROS"].sum()
                 fat_adere = df_periodo[df_periodo["FABRICANTE"].str.contains("ADERE", na=False)].groupby("CLIENTE_GRUPO")["VALORTOTAL"].sum()
                 fat_condor = df_periodo[df_periodo["FABRICANTE"].str.contains("CONDOR", na=False)].groupby("CLIENTE_GRUPO")["VALORTOTAL"].sum()
                 
