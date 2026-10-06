@@ -207,6 +207,116 @@ if aba_selecionada == "⚙️ Área do Administrador":
                 st.warning("⚠️ Faça o upload de pelo menos uma base antes de salvar.")
         
         st.markdown("---")
+        st.markdown('<div class="sub-title">📊 Relatório Gerencial de Oportunidades</div>', unsafe_allow_html=True)
+        st.write("Filtre a carteira de clientes para ver quem não foi positivado ou tem oportunidades em aberto no mês.")
+        
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            mes_ref = st.selectbox("Mês de Referência:", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], index=datetime.now().month - 1)
+        with col_f2:
+            ano_ref = st.number_input("Ano de Referência:", value=datetime.now().year, min_value=2020, max_value=2030, step=1)
+            
+        tipo_filtro = st.selectbox(
+            "Filtrar por clientes que:",
+            [
+                "Mostrar Todos (Geral)", 
+                "Não estão Positivados (Volume 0 de Suvinil/Sherwin)", 
+                "Não têm Mix Básico Completo", 
+                "Ainda não compraram Adere", 
+                "Ainda não compraram Condor"
+            ]
+        )
+        
+        if st.button("🔍 Gerar Relatório Gerencial", use_container_width=True):
+            if not os.path.exists(ARQ_VENDAS_SERVIDOR):
+                st.error("Base de vendas não encontrada no servidor.")
+            else:
+                with st.spinner("Analisando carteira de clientes... Isso pode levar alguns segundos."):
+                    # Carregamento simplificado para o relatório
+                    df = pd.read_excel(ARQ_VENDAS_SERVIDOR, sheet_name=0)
+                    df = normalizar_colunas(df, {
+                        "DATA EMISSÃO": ["DATA EMISSO", "DATA", "EMISSAO"],
+                        "MIX BASICO": ["MIX\nBASICO", "MIX BÁSICO", "MIX"],
+                    })
+                    
+                    def convert_date(val):
+                        if pd.isna(val): return pd.NaT
+                        if isinstance(val, (pd.Timestamp, datetime)): return pd.to_datetime(val)
+                        try:
+                            num = float(val)
+                            if 20000 < num < 70000: return pd.to_datetime(num, unit="D", origin="1899-12-30")
+                        except (ValueError, TypeError): pass
+                        return pd.to_datetime(val, dayfirst=True, errors="coerce")
+                        
+                    df["DATA_DT"] = df["DATA EMISSÃO"].apply(convert_date)
+                    df["ANO"] = df["DATA_DT"].dt.year
+                    df["MES"] = df["DATA_DT"].dt.month
+                    df["VENDALITROS"] = pd.to_numeric(df["VENDALITROS"], errors="coerce").fillna(0)
+                    df["VALORTOTAL"] = pd.to_numeric(df["VALORTOTAL"], errors="coerce").fillna(0)
+                    df["FABRICANTE"] = df["FABRICANTE"].astype(str).str.strip().str.upper()
+                    if "MIX BASICO" in df.columns:
+                        df["MIX BASICO"] = df["MIX BASICO"].astype(str).str.strip().str.upper()
+                    else:
+                        df["MIX BASICO"] = ""
+                    
+                    df["CLIENTE_GRUPO"] = df["Grupo de Cliente"].fillna(df["CLIENTE"]).astype(str).str.strip()
+                    clientes_geral = df["CLIENTE_GRUPO"].dropna().unique()
+                    
+                    df_periodo = df[(df["ANO"] == ano_ref) & (df["MES"] == mes_ref)]
+                    
+                    df_suv_sher = df_periodo[df_periodo["FABRICANTE"].str.contains("SUVINIL|SHERWIN", na=False)]
+                    vol_suv = df_suv_sher.groupby("CLIENTE_GRUPO")["VENDALITROS"].sum()
+                    vol_alv = df_suv_sher[df_suv_sher["MIX BASICO"] == "ALVENARIA"].groupby("CLIENTE_GRUPO")["VENDALITROS"].sum()
+                    vol_comp = df_suv_sher[df_suv_sher["MIX BASICO"] == "COMPLEMENTOS"].groupby("CLIENTE_GRUPO")["VENDALITROS"].sum()
+                    vol_esm = df_suv_sher[df_suv_sher["MIX BASICO"] == "ESMALTES E VERNIZES"].groupby("CLIENTE_GRUPO")["VENDALITROS"].sum()
+                    fat_adere = df_periodo[df_periodo["FABRICANTE"].str.contains("ADERE", na=False)].groupby("CLIENTE_GRUPO")["VALORTOTAL"].sum()
+                    fat_condor = df_periodo[df_periodo["FABRICANTE"].str.contains("CONDOR", na=False)].groupby("CLIENTE_GRUPO")["VALORTOTAL"].sum()
+                    
+                    df_rel = pd.DataFrame({"Cliente / Grupo": clientes_geral}).set_index("Cliente / Grupo")
+                    df_rel["Vol Suvinil/Sherwin"] = vol_suv
+                    df_rel["Vol Alvenaria"] = vol_alv
+                    df_rel["Vol Complementos"] = vol_comp
+                    df_rel["Vol Esmaltes"] = vol_esm
+                    df_rel["Fat Adere"] = fat_adere
+                    df_rel["Fat Condor"] = fat_condor
+                    df_rel = df_rel.fillna(0).reset_index()
+                    
+                    df_rel["Positivado?"] = df_rel["Vol Suvinil/Sherwin"].apply(lambda x: "✅ SIM" if x > 0 else "❌ NÃO")
+                    df_rel["Adere?"] = df_rel["Fat Adere"].apply(lambda x: "✅ SIM" if x > 0 else "❌ NÃO")
+                    df_rel["Condor?"] = df_rel["Fat Condor"].apply(lambda x: "✅ SIM" if x > 0 else "❌ NÃO")
+                    
+                    def check_mix(row):
+                        if row["Vol Alvenaria"] >= 14.4 and row["Vol Complementos"] >= 14.4 and row["Vol Esmaltes"] >= 14.4:
+                            return "✅ SIM"
+                        return "❌ NÃO"
+                        
+                    def calc_falta(row):
+                        falta = []
+                        if row["Vol Alvenaria"] < 14.4: falta.append("Alvenaria")
+                        if row["Vol Complementos"] < 14.4: falta.append("Complementos")
+                        if row["Vol Esmaltes"] < 14.4: falta.append("Esmaltes")
+                        if not falta: return "-"
+                        return ", ".join(falta)
+                        
+                    df_rel["Mix Completo?"] = df_rel.apply(check_mix, axis=1)
+                    df_rel["Falta no Mix"] = df_rel.apply(calc_falta, axis=1)
+                    df_rel["Vol Suvinil/Sherwin"] = df_rel["Vol Suvinil/Sherwin"].apply(lambda x: f"{x:,.0f} L".replace(",", "."))
+                    
+                    df_rel = df_rel[["Cliente / Grupo", "Positivado?", "Vol Suvinil/Sherwin", "Mix Completo?", "Falta no Mix", "Adere?", "Condor?"]]
+                    
+                    if "Não estão Positivados" in tipo_filtro:
+                        df_rel = df_rel[df_rel["Positivado?"] == "❌ NÃO"]
+                    elif "Não têm Mix Básico Completo" in tipo_filtro:
+                        df_rel = df_rel[df_rel["Mix Completo?"] == "❌ NÃO"]
+                    elif "Ainda não compraram Adere" in tipo_filtro:
+                        df_rel = df_rel[df_rel["Adere?"] == "❌ NÃO"]
+                    elif "Ainda não compraram Condor" in tipo_filtro:
+                        df_rel = df_rel[df_rel["Condor?"] == "❌ NÃO"]
+                        
+                    st.success(f"🔍 Encontrados {len(df_rel)} clientes para o filtro selecionado!")
+                    st.dataframe(df_rel, use_container_width=True, hide_index=True)
+                    
+        st.markdown("---")
         with st.expander("🛠️ Modo Desenvolvedor: Ver Colunas Lidas", expanded=False):
             st.write("**Colunas Vendas:**", df_vendas.columns.tolist() if 'df_vendas' in locals() else "Nenhuma")
             st.write("**Colunas Receber:**", df_receber.columns.tolist() if 'df_receber' in locals() else "Nenhuma")
