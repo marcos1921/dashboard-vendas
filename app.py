@@ -216,10 +216,14 @@ if aba_selecionada == "⚙️ Área do Administrador":
         else:
             hoje = datetime.now()
             primeiro_dia = hoje.replace(day=1)
-            dt_range = st.date_input("Período do Relatório:", value=(primeiro_dia, hoje), format="DD/MM/YYYY")
             
-            if len(dt_range) == 2:
-                dt_ini, dt_fim = dt_range[0], dt_range[1]
+            col_d1, col_d2 = st.columns(2)
+            with col_d1:
+                dt_ini = st.date_input("Data Inicial:", value=primeiro_dia, format="DD/MM/YYYY")
+            with col_d2:
+                dt_fim = st.date_input("Data Final:", value=hoje, format="DD/MM/YYYY")
+            
+            if dt_ini and dt_fim:
                 
                 @st.cache_data(show_spinner="Carregando base (Apenas na 1ª vez após upload)...")
                 def load_automatic_report(file_path, mod_time):
