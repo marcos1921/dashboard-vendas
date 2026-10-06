@@ -208,46 +208,54 @@ if aba_selecionada == "⚙️ Área do Administrador":
         
         st.markdown("---")
         st.markdown("---")
-        st.markdown('<div class="sub-title">📊 Oportunidades Automáticas (Mês Atual)</div>', unsafe_allow_html=True)
-        st.write("Visão instantânea de clientes com oportunidades neste mês. Atualizado automaticamente ao subir uma nova base.")
+        st.markdown('<div class="sub-title">📊 Oportunidades (Tempo Real)</div>', unsafe_allow_html=True)
+        st.write("Selecione o período abaixo. Os cálculos são feitos instantaneamente a partir da última base salva.")
         
         if not os.path.exists(ARQ_VENDAS_SERVIDOR):
             st.warning("Nenhuma base de vendas encontrada. Faça o upload acima.")
         else:
-            @st.cache_data(show_spinner="Processando oportunidades do mês...")
-            def load_automatic_report(file_path, mod_time):
-                df_raw = pd.read_excel(file_path, sheet_name=0)
-                df_raw = normalizar_colunas(df_raw, {
-                    "DATA EMISSÃO": ["DATA EMISSO", "DATA", "EMISSAO"],
-                    "MIX BASICO": ["MIX\nBASICO", "MIX BÁSICO", "MIX"],
-                })
+            hoje = datetime.now()
+            primeiro_dia = hoje.replace(day=1)
+            dt_range = st.date_input("Período do Relatório:", value=(primeiro_dia, hoje), format="DD/MM/YYYY")
+            
+            if len(dt_range) == 2:
+                dt_ini, dt_fim = dt_range[0], dt_range[1]
                 
-                def convert_date(val):
-                    if pd.isna(val): return pd.NaT
-                    if isinstance(val, (pd.Timestamp, datetime)): return pd.to_datetime(val)
-                    try:
-                        num = float(val)
-                        if 20000 < num < 70000: return pd.to_datetime(num, unit="D", origin="1899-12-30")
-                    except (ValueError, TypeError): pass
-                    return pd.to_datetime(val, dayfirst=True, errors="coerce")
+                @st.cache_data(show_spinner="Carregando base (Apenas na 1ª vez após upload)...")
+                def load_automatic_report(file_path, mod_time):
+                    df_raw = pd.read_excel(file_path, sheet_name=0)
+                    df_raw = normalizar_colunas(df_raw, {
+                        "DATA EMISSÃO": ["DATA EMISSO", "DATA", "EMISSAO"],
+                        "MIX BASICO": ["MIX\nBASICO", "MIX BÁSICO", "MIX"],
+                    })
                     
-                df_raw["DATA_DT"] = df_raw["DATA EMISSÃO"].apply(convert_date)
-                df_raw["VENDALITROS"] = pd.to_numeric(df_raw["VENDALITROS"], errors="coerce").fillna(0)
-                df_raw["VALORTOTAL"] = pd.to_numeric(df_raw["VALORTOTAL"], errors="coerce").fillna(0)
-                df_raw["FABRICANTE"] = df_raw["FABRICANTE"].astype(str).str.strip().str.upper()
-                if "MIX BASICO" in df_raw.columns:
-                    df_raw["MIX BASICO"] = df_raw["MIX BASICO"].astype(str).str.strip().str.upper()
-                else:
-                    df_raw["MIX BASICO"] = ""
+                    def convert_date(val):
+                        if pd.isna(val): return pd.NaT
+                        if isinstance(val, (pd.Timestamp, datetime)): return pd.to_datetime(val)
+                        try:
+                            num = float(val)
+                            if 20000 < num < 70000: return pd.to_datetime(num, unit="D", origin="1899-12-30")
+                        except (ValueError, TypeError): pass
+                        return pd.to_datetime(val, dayfirst=True, errors="coerce")
+                        
+                    df_raw["DATA_DT"] = df_raw["DATA EMISSÃO"].apply(convert_date)
+                    df_raw["VENDALITROS"] = pd.to_numeric(df_raw["VENDALITROS"], errors="coerce").fillna(0)
+                    df_raw["VALORTOTAL"] = pd.to_numeric(df_raw["VALORTOTAL"], errors="coerce").fillna(0)
+                    df_raw["FABRICANTE"] = df_raw["FABRICANTE"].astype(str).str.strip().str.upper()
+                    if "MIX BASICO" in df_raw.columns:
+                        df_raw["MIX BASICO"] = df_raw["MIX BASICO"].astype(str).str.strip().str.upper()
+                    else:
+                        df_raw["MIX BASICO"] = ""
+                    
+                    df_raw["CLIENTE_GRUPO"] = df_raw["Grupo de Cliente"].fillna(df_raw["CLIENTE"]).astype(str).str.strip()
+                    return df_raw
                 
-                df_raw["CLIENTE_GRUPO"] = df_raw["Grupo de Cliente"].fillna(df_raw["CLIENTE"]).astype(str).str.strip()
-                
-                # Foca no mês e ano atuais reais
-                ano_atual = datetime.now().year
-                mes_atual = datetime.now().month
-                
+                # Carrega instantaneamente graças ao cache
+                df_raw = load_automatic_report(ARQ_VENDAS_SERVIDOR, os.path.getmtime(ARQ_VENDAS_SERVIDOR))
                 clientes_geral = df_raw["CLIENTE_GRUPO"].dropna().unique()
-                df_periodo = df_raw[(df_raw["DATA_DT"].dt.year == ano_atual) & (df_raw["DATA_DT"].dt.month == mes_atual)]
+                
+                # Filtra pelo período selecionado no calendário
+                df_periodo = df_raw[(df_raw["DATA_DT"].dt.date >= dt_ini) & (df_raw["DATA_DT"].dt.date <= dt_fim)]
                 
                 df_suv_sher = df_periodo[df_periodo["FABRICANTE"].str.contains("SUVINIL|SHERWIN", na=False)]
                 vol_suv = df_suv_sher.groupby("CLIENTE_GRUPO")["VENDALITROS"].sum()
@@ -286,37 +294,32 @@ if aba_selecionada == "⚙️ Área do Administrador":
                 df_rel["Mix Completo?"] = df_rel.apply(check_mix, axis=1)
                 df_rel["Falta no Mix"] = df_rel.apply(calc_falta, axis=1)
                 
-                # Formata os números no final para não atrapalhar os cálculos
+                # Formatação final
                 df_rel["Vol Suvinil/Sherwin"] = df_rel["Vol Suvinil/Sherwin"].apply(lambda x: f"{x:,.0f} L".replace(",", "."))
                 df_rel["Fat Adere"] = df_rel["Fat Adere"].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                 df_rel["Fat Condor"] = df_rel["Fat Condor"].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                 
-                return df_rel
-            
-            # Carrega (usando cache para ser instantâneo após a 1ª vez)
-            df_rel = load_automatic_report(ARQ_VENDAS_SERVIDOR, os.path.getmtime(ARQ_VENDAS_SERVIDOR))
-            
-            aba_pos, aba_mix, aba_ade, aba_con = st.tabs(["❌ Não Positivados", "⚠️ Falta Mix Básico", "📦 Sem Adere", "🧹 Sem Condor"])
-            
-            with aba_pos:
-                df_pos = df_rel[df_rel["Positivado?"] == "❌ NÃO"][["Cliente / Grupo", "Vol Suvinil/Sherwin"]]
-                st.write(f"**{len(df_pos)} clientes** ainda não bateram 50L de Suvinil/Sherwin no mês atual.")
-                st.dataframe(df_pos, use_container_width=True, hide_index=True)
+                aba_pos, aba_mix, aba_ade, aba_con = st.tabs(["❌ Não Positivados", "⚠️ Falta Mix Básico", "📦 Sem Adere", "🧹 Sem Condor"])
                 
-            with aba_mix:
-                df_mix = df_rel[df_rel["Mix Completo?"] == "❌ NÃO"][["Cliente / Grupo", "Falta no Mix"]]
-                st.write(f"**{len(df_mix)} clientes** estão com o Mix Básico incompleto no mês atual.")
-                st.dataframe(df_mix, use_container_width=True, hide_index=True)
-                
-            with aba_ade:
-                df_ade = df_rel[df_rel["Adere?"] == "❌ NÃO"][["Cliente / Grupo", "Fat Adere"]]
-                st.write(f"**{len(df_ade)} clientes** não compraram Adere no mês atual.")
-                st.dataframe(df_ade, use_container_width=True, hide_index=True)
-                
-            with aba_con:
-                df_con = df_rel[df_rel["Condor?"] == "❌ NÃO"][["Cliente / Grupo", "Fat Condor"]]
-                st.write(f"**{len(df_con)} clientes** não compraram Condor no mês atual.")
-                st.dataframe(df_con, use_container_width=True, hide_index=True)
+                with aba_pos:
+                    df_pos = df_rel[df_rel["Positivado?"] == "❌ NÃO"][["Cliente / Grupo", "Vol Suvinil/Sherwin"]]
+                    st.write(f"**{len(df_pos)} clientes** não atingiram 50L de Suvinil/Sherwin no período selecionado.")
+                    st.dataframe(df_pos, use_container_width=True, hide_index=True)
+                    
+                with aba_mix:
+                    df_mix = df_rel[df_rel["Mix Completo?"] == "❌ NÃO"][["Cliente / Grupo", "Falta no Mix"]]
+                    st.write(f"**{len(df_mix)} clientes** estão com o Mix Básico incompleto no período selecionado.")
+                    st.dataframe(df_mix, use_container_width=True, hide_index=True)
+                    
+                with aba_ade:
+                    df_ade = df_rel[df_rel["Adere?"] == "❌ NÃO"][["Cliente / Grupo", "Fat Adere"]]
+                    st.write(f"**{len(df_ade)} clientes** não compraram Adere no período selecionado.")
+                    st.dataframe(df_ade, use_container_width=True, hide_index=True)
+                    
+                with aba_con:
+                    df_con = df_rel[df_rel["Condor?"] == "❌ NÃO"][["Cliente / Grupo", "Fat Condor"]]
+                    st.write(f"**{len(df_con)} clientes** não compraram Condor no período selecionado.")
+                    st.dataframe(df_con, use_container_width=True, hide_index=True)
                     
         st.markdown("---")
         with st.expander("🛠️ Modo Desenvolvedor: Ver Colunas Lidas", expanded=False):
