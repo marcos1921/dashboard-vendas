@@ -208,7 +208,7 @@ if aba_selecionada == "⚙️ Área do Administrador":
         
         st.markdown("---")
         st.markdown("---")
-        st.markdown('<div class="sub-title">📊 Oportunidades (Tempo Real)</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sub-title">📊 Relatório de Oportunidades</div>', unsafe_allow_html=True)
         st.write("Selecione o período abaixo. Os cálculos são feitos instantaneamente a partir da última base salva.")
         
         if not os.path.exists(ARQ_VENDAS_SERVIDOR):
