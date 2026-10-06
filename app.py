@@ -212,57 +212,61 @@ if aba_selecionada == "⚙️ Área do Administrador":
         
         col_f1, col_f2 = st.columns(2)
         with col_f1:
-            mes_ref = st.selectbox("Mês de Referência:", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], index=datetime.now().month - 1)
+            dt_range = st.date_input("Período do Relatório:", value=[], format="DD/MM/YYYY")
         with col_f2:
-            ano_ref = st.number_input("Ano de Referência:", value=datetime.now().year, min_value=2020, max_value=2030, step=1)
-            
-        tipo_filtro = st.selectbox(
-            "Filtrar por clientes que:",
-            [
-                "Mostrar Todos (Geral)", 
-                "Não Positivados", 
-                "Não têm Mix Básico Completo", 
-                "Ainda não compraram Adere", 
-                "Ainda não compraram Condor"
-            ]
-        )
+            tipo_filtro = st.selectbox(
+                "Filtrar por clientes que:",
+                [
+                    "Mostrar Todos (Geral)", 
+                    "Não Positivados", 
+                    "Não têm Mix Básico Completo", 
+                    "Ainda não compraram Adere", 
+                    "Ainda não compraram Condor"
+                ]
+            )
         
         if st.button("🔍 Gerar Relatório Gerencial", use_container_width=True):
-            if not os.path.exists(ARQ_VENDAS_SERVIDOR):
+            if len(dt_range) != 2:
+                st.warning("⚠️ Selecione a data de início e fim (duas datas) no calendário para gerar o relatório.")
+            elif not os.path.exists(ARQ_VENDAS_SERVIDOR):
                 st.error("Base de vendas não encontrada no servidor.")
             else:
-                with st.spinner("Analisando carteira de clientes... Isso pode levar alguns segundos."):
-                    # Carregamento simplificado para o relatório
-                    df = pd.read_excel(ARQ_VENDAS_SERVIDOR, sheet_name=0)
-                    df = normalizar_colunas(df, {
-                        "DATA EMISSÃO": ["DATA EMISSO", "DATA", "EMISSAO"],
-                        "MIX BASICO": ["MIX\nBASICO", "MIX BÁSICO", "MIX"],
-                    })
+                with st.spinner("Analisando carteira de clientes..."):
                     
-                    def convert_date(val):
-                        if pd.isna(val): return pd.NaT
-                        if isinstance(val, (pd.Timestamp, datetime)): return pd.to_datetime(val)
-                        try:
-                            num = float(val)
-                            if 20000 < num < 70000: return pd.to_datetime(num, unit="D", origin="1899-12-30")
-                        except (ValueError, TypeError): pass
-                        return pd.to_datetime(val, dayfirst=True, errors="coerce")
+                    @st.cache_data(show_spinner=False)
+                    def load_report_data(file_path, mod_time):
+                        df_raw = pd.read_excel(file_path, sheet_name=0)
+                        df_raw = normalizar_colunas(df_raw, {
+                            "DATA EMISSÃO": ["DATA EMISSO", "DATA", "EMISSAO"],
+                            "MIX BASICO": ["MIX\nBASICO", "MIX BÁSICO", "MIX"],
+                        })
                         
-                    df["DATA_DT"] = df["DATA EMISSÃO"].apply(convert_date)
-                    df["ANO"] = df["DATA_DT"].dt.year
-                    df["MES"] = df["DATA_DT"].dt.month
-                    df["VENDALITROS"] = pd.to_numeric(df["VENDALITROS"], errors="coerce").fillna(0)
-                    df["VALORTOTAL"] = pd.to_numeric(df["VALORTOTAL"], errors="coerce").fillna(0)
-                    df["FABRICANTE"] = df["FABRICANTE"].astype(str).str.strip().str.upper()
-                    if "MIX BASICO" in df.columns:
-                        df["MIX BASICO"] = df["MIX BASICO"].astype(str).str.strip().str.upper()
-                    else:
-                        df["MIX BASICO"] = ""
-                    
-                    df["CLIENTE_GRUPO"] = df["Grupo de Cliente"].fillna(df["CLIENTE"]).astype(str).str.strip()
+                        def convert_date(val):
+                            if pd.isna(val): return pd.NaT
+                            if isinstance(val, (pd.Timestamp, datetime)): return pd.to_datetime(val)
+                            try:
+                                num = float(val)
+                                if 20000 < num < 70000: return pd.to_datetime(num, unit="D", origin="1899-12-30")
+                            except (ValueError, TypeError): pass
+                            return pd.to_datetime(val, dayfirst=True, errors="coerce")
+                            
+                        df_raw["DATA_DT"] = df_raw["DATA EMISSÃO"].apply(convert_date)
+                        df_raw["VENDALITROS"] = pd.to_numeric(df_raw["VENDALITROS"], errors="coerce").fillna(0)
+                        df_raw["VALORTOTAL"] = pd.to_numeric(df_raw["VALORTOTAL"], errors="coerce").fillna(0)
+                        df_raw["FABRICANTE"] = df_raw["FABRICANTE"].astype(str).str.strip().str.upper()
+                        if "MIX BASICO" in df_raw.columns:
+                            df_raw["MIX BASICO"] = df_raw["MIX BASICO"].astype(str).str.strip().str.upper()
+                        else:
+                            df_raw["MIX BASICO"] = ""
+                        
+                        df_raw["CLIENTE_GRUPO"] = df_raw["Grupo de Cliente"].fillna(df_raw["CLIENTE"]).astype(str).str.strip()
+                        return df_raw
+                        
+                    df = load_report_data(ARQ_VENDAS_SERVIDOR, os.path.getmtime(ARQ_VENDAS_SERVIDOR))
                     clientes_geral = df["CLIENTE_GRUPO"].dropna().unique()
                     
-                    df_periodo = df[(df["ANO"] == ano_ref) & (df["MES"] == mes_ref)]
+                    dt_ini, dt_fim = dt_range[0], dt_range[1]
+                    df_periodo = df[(df["DATA_DT"].dt.date >= dt_ini) & (df["DATA_DT"].dt.date <= dt_fim)]
                     
                     df_suv_sher = df_periodo[df_periodo["FABRICANTE"].str.contains("SUVINIL|SHERWIN", na=False)]
                     vol_suv = df_suv_sher.groupby("CLIENTE_GRUPO")["VENDALITROS"].sum()
