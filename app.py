@@ -220,7 +220,7 @@ if aba_selecionada == "⚙️ Área do Administrador":
             "Filtrar por clientes que:",
             [
                 "Mostrar Todos (Geral)", 
-                "Não estão Positivados (Volume 0 de Suvinil/Sherwin)", 
+                "Não Positivados", 
                 "Não têm Mix Básico Completo", 
                 "Ainda não compraram Adere", 
                 "Ainda não compraram Condor"
@@ -281,7 +281,7 @@ if aba_selecionada == "⚙️ Área do Administrador":
                     df_rel["Fat Condor"] = fat_condor
                     df_rel = df_rel.fillna(0).reset_index()
                     
-                    df_rel["Positivado?"] = df_rel["Vol Suvinil/Sherwin"].apply(lambda x: "✅ SIM" if x > 0 else "❌ NÃO")
+                    df_rel["Positivado?"] = df_rel["Vol Suvinil/Sherwin"].apply(lambda x: "✅ SIM" if x >= 50 else "❌ NÃO")
                     df_rel["Adere?"] = df_rel["Fat Adere"].apply(lambda x: "✅ SIM" if x > 0 else "❌ NÃO")
                     df_rel["Condor?"] = df_rel["Fat Condor"].apply(lambda x: "✅ SIM" if x > 0 else "❌ NÃO")
                     
@@ -304,7 +304,7 @@ if aba_selecionada == "⚙️ Área do Administrador":
                     
                     df_rel = df_rel[["Cliente / Grupo", "Positivado?", "Vol Suvinil/Sherwin", "Mix Completo?", "Falta no Mix", "Adere?", "Condor?"]]
                     
-                    if "Não estão Positivados" in tipo_filtro:
+                    if "Não Positivados" in tipo_filtro:
                         df_rel = df_rel[df_rel["Positivado?"] == "❌ NÃO"]
                     elif "Não têm Mix Básico Completo" in tipo_filtro:
                         df_rel = df_rel[df_rel["Mix Completo?"] == "❌ NÃO"]
