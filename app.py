@@ -269,6 +269,11 @@ if aba_selecionada == "⚙️ Área do Administrador":
                 fat_adere = df_periodo[df_periodo["FABRICANTE"].str.contains("ADERE", na=False)].groupby("CLIENTE_GRUPO")["VALORTOTAL"].sum()
                 fat_condor = df_periodo[df_periodo["FABRICANTE"].str.contains("CONDOR", na=False)].groupby("CLIENTE_GRUPO")["VALORTOTAL"].sum()
                 
+                max_dt_base = df_raw["DATA_DT"].max()
+                data_ref_inatividade = max_dt_base if pd.notna(max_dt_base) else datetime.now()
+                df_suv_sher_all = df_raw[df_raw["FABRICANTE"].str.contains("SUVINIL|SHERWIN", na=False)]
+                ultima_compra = df_suv_sher_all.groupby("CLIENTE_GRUPO")["DATA_DT"].max()
+                
                 df_rel = pd.DataFrame({"Cliente / Grupo": clientes_geral}).set_index("Cliente / Grupo")
                 df_rel["Vol Suvinil/Sherwin"] = vol_suv
                 df_rel["Vol Alvenaria"] = vol_alv
@@ -276,11 +281,24 @@ if aba_selecionada == "⚙️ Área do Administrador":
                 df_rel["Vol Esmaltes"] = vol_esm
                 df_rel["Fat Adere"] = fat_adere
                 df_rel["Fat Condor"] = fat_condor
-                df_rel = df_rel.fillna(0).reset_index()
+                df_rel["Ultima Compra"] = ultima_compra
+                
+                # Preencher métricas numéricas com 0, mantendo a data intacta
+                cols_num = ["Vol Suvinil/Sherwin", "Vol Alvenaria", "Vol Complementos", "Vol Esmaltes", "Fat Adere", "Fat Condor"]
+                df_rel[cols_num] = df_rel[cols_num].fillna(0)
+                df_rel = df_rel.reset_index()
                 
                 df_rel["Positivado?"] = df_rel["Vol Suvinil/Sherwin"].apply(lambda x: "✅ SIM" if x >= 50 else "❌ NÃO")
                 df_rel["Adere?"] = df_rel["Fat Adere"].apply(lambda x: "✅ SIM" if x > 0 else "❌ NÃO")
                 df_rel["Condor?"] = df_rel["Fat Condor"].apply(lambda x: "✅ SIM" if x > 0 else "❌ NÃO")
+                
+                df_rel["Dias Inativo"] = (data_ref_inatividade - df_rel["Ultima Compra"]).dt.days.fillna(999)
+                df_rel["Inativo?"] = df_rel["Dias Inativo"] >= 90
+                def format_inat(dias):
+                    if dias == 999: return "Nunca comprou Suv/Sher"
+                    meses = dias // 30
+                    return f"{int(meses)} meses sem comprar"
+                df_rel["Tempo Inativo"] = df_rel["Dias Inativo"].apply(format_inat)
                 
                 def check_mix(row):
                     if row["Vol Alvenaria"] >= 14.4 and row["Vol Complementos"] >= 14.4 and row["Vol Esmaltes"] >= 14.4:
@@ -314,7 +332,7 @@ if aba_selecionada == "⚙️ Área do Administrador":
                         mascara &= df_rel["Cliente / Grupo"].str.contains(t, case=False, regex=False)
                     df_rel = df_rel[mascara]
                 
-                aba_pos, aba_mix, aba_ade, aba_con = st.tabs(["❌ Não Positivados", "⚠️ Falta Mix Básico", "📦 Sem Adere", "🧹 Sem Condor"])
+                aba_pos, aba_mix, aba_inat, aba_ade, aba_con = st.tabs(["❌ Não Positivados", "⚠️ Falta Mix Básico", "💤 Inativos (>90d)", "📦 Sem Adere", "🧹 Sem Condor"])
                 
                 with aba_pos:
                     df_pos = df_rel[df_rel["Positivado?"] == "❌ NÃO"][["Cliente / Grupo", "Vol Suvinil/Sherwin"]]
@@ -325,6 +343,11 @@ if aba_selecionada == "⚙️ Área do Administrador":
                     df_mix = df_rel[df_rel["Mix Completo?"] == "❌ NÃO"][["Cliente / Grupo", "Falta no Mix"]]
                     st.write(f"**{len(df_mix)} clientes** estão com o Mix Básico incompleto no período selecionado.")
                     st.dataframe(df_mix, use_container_width=True, hide_index=True)
+                    
+                with aba_inat:
+                    df_inat = df_rel[df_rel["Inativo?"] == True][["Cliente / Grupo", "Tempo Inativo"]]
+                    st.write(f"**{len(df_inat)} clientes** estão inativos (sem comprar Suvinil/Sherwin há 90 dias ou mais).")
+                    st.dataframe(df_inat, use_container_width=True, hide_index=True)
                     
                 with aba_ade:
                     df_ade = df_rel[df_rel["Adere?"] == "❌ NÃO"][["Cliente / Grupo", "Fat Adere"]]
